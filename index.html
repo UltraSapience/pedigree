@@ -1,0 +1,2758 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Pedigree Editor (Pro Fix)</title>
+  <style>
+    :root{--bg:#0b0e14;--panel:#12182a;--stroke:#c9d1e6;--muted:#8ea0c7;--accent:#7aa2ff;--danger:#ff6b6b;--ok:#2dd4bf;--shadow:0 12px 40px rgba(0,0,0,.35);--radius:14px;}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif;color:#e8eeff;background:radial-gradient(1200px 800px at 20% 0%,#182145 0%,var(--bg) 55%,#070a10 100%);height:100vh;overflow:hidden}
+    .app{height:100vh;display:grid;grid-template-rows:auto 1fr}
+    .toolbar{display:flex;gap:10px;align-items:center;padding:12px 14px;background:linear-gradient(180deg,rgba(18,24,42,.92),rgba(12,16,30,.88));border-bottom:1px solid rgba(201,209,230,.14);backdrop-filter:blur(10px);flex-wrap:wrap}
+    .toolgroup{display:flex;gap:8px;align-items:center;padding-right:10px;border-right:1px solid rgba(201,209,230,.12)}
+    .toolgroup:last-child{border-right:none;padding-right:0}
+    button,select,input,textarea{font:inherit;color:inherit;background:rgba(255,255,255,.08);border:1px solid rgba(201,209,230,.25);border-radius:12px;padding:9px 10px;outline:none}
+    button{cursor:pointer;transition:transform .06s ease,background .18s ease,border-color .18s;box-shadow:0 6px 18px rgba(0,0,0,.18);white-space:nowrap}
+    button:hover{background:rgba(255,255,255,.10);border-color:rgba(122,162,255,.35)}
+    button:active{transform:translateY(1px)}
+    button:disabled{opacity:0.5;cursor:not-allowed}
+    button.primary{background:rgba(122,162,255,.18);border-color:rgba(122,162,255,.35)}
+    button.danger{background:rgba(255,107,107,.16);border-color:rgba(255,107,107,.35)}
+    button.ok{background:rgba(45,212,191,.14);border-color:rgba(45,212,191,.35)}
+    button.load-file{background:rgba(122,162,255,.12);border-color:rgba(122,162,255,.3);color:rgba(122,162,255,.9)}
+    .main{display:grid;grid-template-columns:1fr 360px;height:100%;min-height:0}
+    .canvasWrap{position:relative;min-width:0;background:linear-gradient(180deg,rgba(9,12,20,.85),rgba(7,10,16,.92));overflow:hidden}
+    .canvasHeader{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index: 10;}
+    .hint{pointer-events:none;font-size:12px;color:rgba(142,160,199,.95);background:rgba(18,24,42,.55);border:1px solid rgba(201,209,230,.14);border-radius:999px;padding:6px 10px;backdrop-filter:blur(8px);margin-left:auto}
+    
+    /* Legend is now part of the SVG structure for better export, but we keep this for screen UI */
+    .legendBox{pointer-events:none;margin-right:auto;background:rgba(18,24,42,.62);border:1px solid rgba(201,209,230,.16);border-radius:14px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter:blur(10px);max-width:360px}
+    .legendTitle{font-size:12px;color:rgba(232,238,255,.96);letter-spacing:.2px;margin:0 0 6px 0;display:flex;align-items:center;gap:8px}
+    .legendGrid{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;font-size:12px;color:rgba(142,160,199,.95)}
+    .legendSym{color:rgba(232,238,255,.92);font-weight:600;text-align:left;min-width:44px}
+    
+    .panel{min-height:0;background:linear-gradient(180deg,rgba(18,24,42,.95),rgba(12,16,30,.95));border-left:1px solid rgba(201,209,230,.14);padding:14px;overflow:auto}
+    .card{background:rgba(255,255,255,.08);border:1px solid rgba(201,209,230,.2);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow);margin-bottom:12px}
+    .card h3{margin:0 0 8px 0;font-size:14px;letter-spacing:.2px;color:#f0f4ff}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .row1{display:grid;grid-template-columns:1fr;gap:10px}
+    label{display:block;font-size:12px;color:rgba(200,210,230,.98);margin-bottom:6px}
+    input,select,textarea{width:100%}
+    textarea{min-height:70px;resize:vertical}
+    .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:rgba(232,238,255,.9);background:rgba(122,162,255,.12);border:1px solid rgba(122,162,255,.24);border-radius:999px;padding:6px 10px;margin-right:8px}
+    .muted{color:rgba(180,195,220,.95);font-size:12px}
+    .list{display:flex;flex-direction:column;gap:8px;max-height:220px;overflow:auto;padding-right:4px}
+    .item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:12px;border:1px solid rgba(201,209,230,.12);background:rgba(255,255,255,.05);cursor:pointer}
+    .item:hover{border-color:rgba(122,162,255,.35)}
+    .item b{font-size:12px}
+    svg{width:100%;height:100%;touch-action:none;display:block;}
+    
+    /* Standardized stroke widths for better export */
+    .grid line{stroke:rgba(201,209,230,.08);stroke-width:1}
+    .relLine{stroke:rgba(232,238,255,.9);stroke-width:2px;fill:none; vector-effect: non-scaling-stroke;}
+    .relLine.dashed{stroke-dasharray:6 5}
+    .nodeShape{stroke:rgba(232,238,255,.92);stroke-width:2px; vector-effect: non-scaling-stroke;}
+    .nodeFillAffected{fill:rgba(232,238,255,.92)}
+    .nodeFillUnaffected{fill:rgba(12,16,30,.1)}
+    .nodeSelected{filter:drop-shadow(0 0 10px rgba(122,162,255,.45))}
+    .subtext{font-size:12px;fill:rgba(232,238,255,.92)}
+    .idtext{font-size:12px;fill:rgba(142,160,199,.95)}
+    .badge{font-size:11px;fill:rgba(142,160,199,.95)}
+    
+    .generation-label{font-family:serif; text-shadow:0 1px 3px rgba(0,0,0,.4);user-select:none;pointer-events:none}
+    
+    .connection-handle{opacity:0;transition:opacity .2s ease}
+    g:hover .connection-handle{opacity:1}
+    .pulse-animation{animation:pulse 1.5s ease-in-out infinite}
+    @keyframes pulse{0%{stroke-opacity:.8;stroke-width:2}50%{stroke-opacity:1;stroke-width:3}100%{stroke-opacity:.8;stroke-width:2}}
+    .linking-indicator{position:absolute;top:60px;right:12px;background:linear-gradient(180deg,rgba(18,24,42,.98),rgba(12,16,30,.98));border:1px solid rgba(122,162,255,.35);border-radius:12px;padding:10px 14px;box-shadow:0 8px 32px rgba(0,0,0,.4);backdrop-filter:blur(10px);display:flex;align-items:center;gap:10px;z-index:100;pointer-events:auto}
+    .linking-text{font-size:12px;color:rgba(232,238,255,.96);letter-spacing:.2px}
+    .linking-cancel{background:rgba(255,107,107,.16);border:1px solid rgba(255,107,107,.35);border-radius:8px;padding:4px 8px;font-size:11px;color:rgba(232,238,255,.9);cursor:pointer;transition:all .2s ease}
+    .linking-cancel:hover{background:rgba(255,107,107,.24);border-color:rgba(255,107,107,.45)}
+    .context-menu{position:fixed;background:linear-gradient(180deg,rgba(18,24,42,.98),rgba(12,16,30,.98));border:1px solid rgba(201,209,230,.25);border-radius:12px;padding:8px 0;box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:1000;min-width:160px;backdrop-filter:blur(10px)}
+    .context-menu-item{padding:10px 16px;font-size:12px;color:rgba(232,238,255,.92);cursor:pointer;border-bottom:1px solid rgba(201,209,230,.1)}
+    .context-menu-item:last-child{border-bottom:none}
+    .context-menu-item:hover{background:rgba(122,162,255,.12)}
+    .context-menu-item.danger:hover{background:rgba(255,100,100,.15)}
+
+    #appLoader {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #0b0e14; z-index: 9999; display: flex; justify-content: center; align-items: center;
+        transition: opacity 0.5s;
+    }
+    .spinner {
+        width: 40px; height: 40px; border: 4px solid rgba(122,162,255,.2);
+        border-top-color: #7aa2ff; border-radius: 50%; animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div id="appLoader"><div class="spinner"></div></div>
+<div class="app">
+  <div class="toolbar">
+    <div class="toolgroup">
+      <button class="primary" id="btnNew"></button>
+      <button class="ok" id="btnSave"></button>
+      <select id="loadSelect" title=""></select>
+      <button id="btnLoad"></button>
+      <button id="btnLoadFile" class="load-file" title="从文件加载"></button>
+      <input type="file" id="pedigreeFile" accept=".json,.ped" hidden />
+    </div>
+    <div class="toolgroup">
+      <button id="addMale"></button>
+      <button id="addFemale"></button>
+      <button id="addUnknown"></button>
+    </div>
+    <div class="toolgroup">
+      <button id="btnCouple"></button>
+      <button id="btnConsang"></button>
+      <button id="btnChild"></button>
+      <button id="btnAdopt"></button>
+    </div>
+    <div class="toolgroup">
+      <button id="togAffected"></button>
+      <button id="togCarrier"></button>
+      <button id="togDeceased" class="danger"></button>
+      <button id="setProband" class="primary"></button>
+    </div>
+    <div class="toolgroup">
+      <button id="exportSVG"></button>
+      <button id="exportPNG"></button>
+      <button id="exportPDF"></button>
+      <button id="printBtn"></button>
+      <button id="exportJSON"></button>
+      <button id="importJSON"></button>
+      <input type="file" id="jsonFile" accept="application/json" hidden />
+    </div>
+    <div class="toolgroup">
+      <button id="btnUndo" disabled></button>
+      <button id="btnRedo" disabled></button>
+      <button id="btnBeautify" class="primary"></button>
+      <button id="toggleGenerationLabels"></button>
+      <button id="toggleLang" class="primary"></button>
+      <button id="toggleLegend"></button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="canvasWrap">
+      <div class="canvasHeader">
+        <div class="legendBox" id="legendBox" style="display:block;">
+          <div class="legendTitle" id="legendTitle"></div>
+          <div class="legendGrid" id="legendGrid"></div>
+        </div>
+        <div class="hint" id="hintText"></div>
+        <div class="linking-indicator" id="linkingIndicator" style="display:none;">
+          <span class="linking-text" id="linkingText"></span>
+          <button class="linking-cancel" id="linkingCancel">取消</button>
+        </div>
+      </div>
+      <svg id="pedSVG" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L10,5 L0,10 z" fill="rgba(232,238,255,.92)"></path>
+          </marker>
+        </defs>
+        <g id="viewport">
+          <g class="grid" id="grid"></g>
+          <g id="generationLabels"></g>
+          <g id="rels"></g>
+          <g id="nodes"></g>
+        </g>
+      </svg>
+    </div>
+
+    <aside class="panel">
+      <div class="card">
+        <h3 id="cardSelectionTitle"></h3>
+        <div class="row1">
+          <div>
+            <span class="pill" id="selCount">0</span>
+            <span class="muted" id="selectionTip"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 id="cardPropsTitle"></h3>
+        <div class="row">
+          <div><label id="lbl_id"></label><input id="f_id" placeholder="II-3" /></div>
+          <div><label id="lbl_sex"></label><select id="f_sex"><option value="M"></option><option value="F"></option><option value="U"></option></select></div>
+        </div>
+        <div class="row">
+          <div><label id="lbl_by"></label><input id="f_by" type="number" placeholder="1998" /></div>
+          <div><label id="lbl_da"></label><input id="f_da" type="number" placeholder="" /></div>
+        </div>
+        <div class="row">
+          <div><label id="lbl_aff"></label><select id="f_aff"><option value="0"></option><option value="1"></option><option value="2"></option></select></div>
+          <div><label id="lbl_car"></label><select id="f_car"><option value="0"></option><option value="1"></option><option value="2"></option></select></div>
+        </div>
+        <div class="row1"><label id="lbl_gt"></label><input id="f_gt" placeholder="PAH c.1222C>T (p.Arg408Trp)" /></div>
+        <div class="row1"><label id="lbl_sub"></label><input id="f_sub" placeholder="c.609G>A / c.658_660del" /></div>
+        <div class="row1"><label id="lbl_note"></label><textarea id="f_note"></textarea></div>
+        <div class="row1"><button class="ok" id="applyProps"></button></div>
+        <div class="muted" id="propsTip"></div>
+      </div>
+
+      <div class="card">
+        <h3 id="cardIndTitle"></h3>
+        <div class="list" id="indList"></div>
+      </div>
+
+      <div class="card">
+        <h3 id="cardLegendTitle"></h3>
+        <div class="muted" id="legendHelperText"></div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="contextMenu" class="context-menu" style="display:none;">
+    <div class="context-menu-item" id="ctxAddSpouse"></div>
+    <div class="context-menu-item" id="ctxAddChild"></div>
+    <div class="context-menu-item" id="ctxAddParent"></div>
+    <div class="context-menu-item" id="ctxAddSibling"></div>
+    <hr style="margin:8px 0;border:none;border-top:1px solid rgba(201,209,230,.1)">
+    <div class="context-menu-item" id="ctxLinkParent"></div>
+    <div class="context-menu-item" id="ctxUnlinkParent"></div>
+    <hr style="margin:8px 0;border:none;border-top:1px solid rgba(201,209,230,.1)">
+    <div class="context-menu-item" id="ctxSetProband"></div>
+    <div class="context-menu-item" id="ctxToggleAffected"></div>
+    <div class="context-menu-item" id="ctxToggleCarrier"></div>
+    <div class="context-menu-item" id="ctxToggleDeceased"></div>
+    <hr style="margin:8px 0;border:none;border-top:1px solid rgba(201,209,230,.1)">
+    <div class="context-menu-item danger" id="ctxDelete"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const DB_KEY = "pedigree_db_v2_pro";
+  const I18N = {
+    zh: {
+      toggleLang: "语言：中文/English",
+      toggleLegendShow: "图例：显示",
+      toggleLegendHide: "图例：隐藏",
+      toggleGen: "代数标记",
+      newFamily: "新建家系",
+      save: "保存",
+      load: "加载",
+      loadSelectTitle: "从本地数据库加载",
+      loadPlaceholderNone: "暂无已保存家系",
+      loadPlaceholderPick: "选择已保存家系…",
+      loadFromFile: "从文件加载",
+      loadFileTitle: "选择家系文件（JSON 或 PED）",
+      addMale: "+ ☐ 男性",
+      addFemale: "+ ○ 女性",
+      addUnknown: "+ ◇ 未知",
+      addCouple: "添加配偶线",
+      addConsang: "近亲婚配（双线）",
+      addChild: "添加子代",
+      addAdopt: "收养（虚线）",
+      togAffected: "切换受累",
+      togCarrier: "切换携带者",
+      togDeceased: "切换死亡",
+      beautify: "一键美化",
+      undo: "撤销",
+      redo: "重做",
+      markProband: "标记先证者 →",
+      exportSVG: "导出 SVG",
+      exportPNG: "导出 PNG",
+      exportPDF: "导出 PDF",
+      print: "打印",
+      exportJSON: "导出 JSON",
+      importJSON: "导入 JSON",
+      hint: "点击个体选择 • 拖拽移动 • 多选：Shift • 删除：Del • 平移：空格拖拽 • 缩放：滚轮 • 连接：拖拽连接点 • Shift+连接=近亲婚配",
+      ready: "就绪",
+      sel: "已选中",
+      selectionTitle: "选择",
+      selectionTip: "Nature 建议：优先使用填充/标记（避免颜色）；subtext 控制在 1–2 行；长表型放图注/补充材料。",
+      propsTitle: "个体属性",
+      id: "编号（如 II-3）",
+      sex: "性别",
+      sexM: "男性（□）",
+      sexF: "女性（○）",
+      sexU: "未知（◇）",
+      birthYear: "出生年",
+      deathAge: "死亡年龄",
+      affected: "表型状态",
+      aff0: "未受累（空心）",
+      aff1: "受累（实心）",
+      aff2: "未知（?）",
+      carrier: "携带者",
+      car0: "否",
+      car1: "是（中心点）",
+      car2: "未知",
+      genotype: "基因型（HGVS；正文中基因名斜体）",
+      subtext: "符号下方短注（建议 1–2 行）",
+      notes: "备注（长表型建议移至图注/补充）",
+      apply: "应用到选中（第一个）",
+      propsTip: "建议：投稿用图优先导出 SVG（矢量），必要时在矢量软件中做期刊级微调。",
+      individuals: "个体列表",
+      legendHelperTitle: "图例辅助（最小化）",
+      legendHelperText: "□ 男；○ 女；◇ 未知；实心=受累；中心点=携带者；斜线=已死亡；双配偶线=近亲婚配；虚线=非生物学关系（如收养）。正文引用格式：Individual II-3；任何非标准符号需在图注定义。",
+      legendTitle: "图例（自动生成）",
+      legendMale: "男性",
+      legendFemale: "女性",
+      legendUnknown: "性别未知",
+      legendAffected: "受累（实心）",
+      legendUnaffected: "未受累（空心）",
+      legendCarrier: "携带者（中心点）",
+      legendDeceased: "已死亡（斜线）",
+      legendCouple: "婚配/生育关系（水平线）",
+      legendConsang: "近亲婚配（双线）",
+      legendAdopt: "非生物学/收养（虚线）",
+      statusAdded: "已添加",
+      statusRelExists: "关系已存在",
+      statusNeed2: "请精确选择 2 个个体",
+      statusChildTip: "提示：建议先添加配偶/近亲婚配线以保持结构清晰（仍将添加子代）。",
+      statusSaved: "已保存",
+      statusLoaded: "已加载",
+      statusDeleted: "已删除",
+      statusUpdated: "已更新属性",
+      confirmNew: "新建家系？（未保存更改将丢失）",
+      promptFamily: "家系名称（用于本地数据库）：",
+      promptSaveAs: "另存为（家系名称）：",
+      notFound: "未找到",
+      selectFirst: "请先选择已保存家系",
+      noSelection: "未选择个体",
+      imported: "已导入 JSON",
+      importFail: "导入失败：JSON 格式不正确",
+      exportedSVG: "已导出 SVG",
+      exportedPNG: "已导出 PNG",
+      exportedPDF: "已导出 PDF",
+      printOpened: "已打开打印窗口",
+      exportedJSON: "已导出 JSON",
+      pngFail: "PNG 导出失败",
+      ctxAddSpouse: "添加配偶",
+      ctxAddChild: "添加子女",
+      ctxAddParent: "添加父母",
+      ctxAddSibling: "添加兄弟姐妹",
+      ctxSetProband: "设为 proband",
+      ctxToggleAffected: "切换患病状态",
+      ctxToggleCarrier: "切换携带者状态",
+      ctxToggleDeceased: "切换已故状态",
+      ctxLinkParent: "建立亲子关系",
+      ctxUnlinkParent: "解除亲子关系",
+      ctxDelete: "删除",
+      statusSpouseAdded: "已添加配偶",
+      statusChildAdded: "已添加子女",
+      statusParentAdded: "已添加父母",
+      statusSiblingAdded: "已添加兄弟姐妹",
+      statusProbandSet: "已设为 proband",
+      statusAffectedToggled: "已切换患病状态",
+      statusCarrierToggled: "已切换携带者状态",
+      statusDeceasedToggled: "已切换已故状态",
+      statusParentLinked: "亲子关系已建立",
+      statusParentUnlinked: "亲子关系已解除",
+      linkingModeActive: "链接模式已激活",
+      linkingModeCancelled: "链接模式已取消",
+      linkingSelectChild: "选择子代与 {parentId} 建立亲子关系",
+      linkingCancel: "取消"
+    },
+    en: {
+      toggleLang: "Language: English/中文",
+      toggleLegendShow: "Legend: Show",
+      toggleLegendHide: "Legend: Hide",
+      toggleGen: "Generation labels",
+      newFamily: "New family",
+      save: "Save",
+      load: "Load",
+      loadSelectTitle: "Load from local database",
+      loadPlaceholderNone: "No saved families",
+      loadPlaceholderPick: "Select saved family…",
+      loadFromFile: "Load from file",
+      loadFileTitle: "Select pedigree file (JSON or PED)",
+      addMale: "+ ☐ Male",
+      addFemale: "+ ○ Female",
+      addUnknown: "+ ◇ Unknown",
+      addCouple: "Add couple line",
+      addConsang: "Consanguinity (double)",
+      addChild: "Add child",
+      addAdopt: "Adoption (dashed)",
+      togAffected: "Toggle affected",
+      togCarrier: "Toggle carrier",
+      togDeceased: "Toggle deceased",
+      beautify: "Beautify",
+      undo: "Undo",
+      redo: "Redo",
+      markProband: "Mark proband →",
+      exportSVG: "Export SVG",
+      exportPNG: "Export PNG",
+      exportPDF: "Export PDF",
+      print: "Print",
+      exportJSON: "Export JSON",
+      importJSON: "Import JSON",
+      hint: "Click to select • Drag to move • Multi-select: Shift • Delete: Del • Pan: Space+Drag • Zoom: Wheel • Connect: Drag connection handle • Shift+Connect=Consanguinity",
+      ready: "Ready",
+      sel: "selected",
+      selectionTitle: "Selection",
+      selectionTip: "For Nature: prefer fill/pattern (not color); keep subtext within 1–2 lines; move long phenotypes to legend/supplement.",
+      propsTitle: "Individual properties",
+      id: "ID (e.g., II-3)",
+      sex: "Sex",
+      sexM: "Male (□)",
+      sexF: "Female (○)",
+      sexU: "Unknown (◇)",
+      birthYear: "Birth year",
+      deathAge: "Death age",
+      affected: "Affected status",
+      aff0: "Unaffected (open)",
+      aff1: "Affected (filled)",
+      aff2: "Unknown (?)",
+      carrier: "Carrier",
+      car0: "No",
+      car1: "Yes (dot)",
+      car2: "Unknown",
+      genotype: "Genotype (HGVS; italicize gene name in manuscript)",
+      subtext: "Subtext (keep 1–2 lines)",
+      notes: "Notes (put long phenotypes in legend/supplement)",
+      apply: "Apply to selected (first)",
+      propsTip: "Tip: export SVG (vector) for submission; fine-tune in a vector editor if needed.",
+      individuals: "Individuals",
+      legendHelperTitle: "Legend helper (minimal)",
+      legendHelperText: "□ male; ○ female; ◇ unknown sex; filled=affected; dot=carrier; slash=deceased; double couple line=consanguinity; dashed=non-biological (e.g., adoption). Refer as “Individual II-3”; define any non-standard mark in the figure legend.",
+      legendTitle: "Legend (auto)",
+      legendMale: "Male",
+      legendFemale: "Female",
+      legendUnknown: "Unknown sex",
+      legendAffected: "Affected (filled)",
+      legendUnaffected: "Unaffected (open)",
+      legendCarrier: "Carrier (dot)",
+      legendDeceased: "Deceased (slash)",
+      legendCouple: "Partner (horizontal)",
+      legendConsang: "Consanguinity (double)",
+      legendAdopt: "Non-biological / adoption (dashed)",
+      statusAdded: "Added",
+      statusRelExists: "Relationship already exists",
+      statusNeed2: "Select exactly 2 individuals",
+      statusChildTip: "Tip: add couple/consanguinity line first for clarity (adding child anyway).",
+      statusSaved: "Saved",
+      statusLoaded: "Loaded",
+      statusDeleted: "Deleted",
+      statusUpdated: "Updated properties",
+      confirmNew: "Start a new family? (Unsaved changes will be lost.)",
+      promptFamily: "Family name (for local database):",
+      promptSaveAs: "Save as (family name):",
+      notFound: "Not found",
+      selectFirst: "Select a saved family first",
+      noSelection: "No selection",
+      imported: "Imported JSON",
+      importFail: "Import failed: invalid JSON",
+      exportedSVG: "Exported SVG",
+      exportedPNG: "Exported PNG",
+      exportedPDF: "Exported PDF",
+      printOpened: "Print dialog opened",
+      exportedJSON: "Exported JSON",
+      pngFail: "PNG export failed",
+      ctxAddSpouse: "Add spouse",
+      ctxAddChild: "Add child",
+      ctxAddParent: "Add parents",
+      ctxAddSibling: "Add sibling",
+      ctxSetProband: "Set as proband",
+      ctxToggleAffected: "Toggle affected",
+      ctxToggleCarrier: "Toggle carrier",
+      ctxToggleDeceased: "Toggle deceased",
+      ctxLinkParent: "Link parent-child",
+      ctxUnlinkParent: "Unlink parent-child",
+      ctxDelete: "Delete",
+      statusSpouseAdded: "Spouse added",
+      statusChildAdded: "Child added",
+      statusParentAdded: "Parents added",
+      statusSiblingAdded: "Sibling added",
+      statusProbandSet: "Set as proband",
+      statusAffectedToggled: "Affected toggled",
+      statusCarrierToggled: "Carrier toggled",
+      statusDeceasedToggled: "Deceased toggled",
+      statusParentLinked: "Parent-child relationship established",
+      statusParentUnlinked: "Parent-child relationship removed",
+      linkingModeActive: "Linking mode activated",
+      linkingModeCancelled: "Linking mode cancelled",
+      linkingSelectChild: "Select child to link with {parentId}",
+      linkingCancel: "Cancel"
+    }
+  };
+  const ui = {
+    lang: (localStorage.getItem("ped_lang") || "zh") in I18N ? (localStorage.getItem("ped_lang") || "zh") : "zh",
+    legendVisible: (localStorage.getItem("ped_legend") ?? "1") === "1",
+    generationLabelsVisible: (localStorage.getItem("ped_generation_labels") ?? "1") === "1"
+  };
+  const state = {
+    familyName: "Untitled",
+    nodes: [],
+    rels: [],
+    selected: new Set(),
+    drag: {active:false, uid:null, dx:0, dy:0, listUpdateTimeout:null, historySaved:false, frameId: null},
+    connection: {active:false, fromUid:null, fromX:0, fromY:0, tempLine:null},
+    view: {scale: 1, translateX: 0, translateY: 0, panning: false}
+  };
+  const history = {
+    stack: [],
+    current: -1,
+    maxSize: 50,
+    isUndoRedoOperation: false
+  };
+
+  /* ---------- DOM ---------- */
+  const svg = document.getElementById("pedSVG");
+  const viewport = document.getElementById("viewport");
+  const gGrid = document.getElementById("grid");
+  const gRels = document.getElementById("rels");
+  const gNodes = document.getElementById("nodes");
+  const appLoader = document.getElementById("appLoader");
+
+  const hintText = document.getElementById("hintText");
+  const legendBox = document.getElementById("legendBox");
+  const legendTitle = document.getElementById("legendTitle");
+  const legendGrid = document.getElementById("legendGrid");
+
+  const selCount = document.getElementById("selCount");
+  const indList = document.getElementById("indList");
+
+  const f_id = document.getElementById("f_id");
+  const f_sex = document.getElementById("f_sex");
+  const f_by = document.getElementById("f_by");
+  const f_da = document.getElementById("f_da");
+  const f_aff = document.getElementById("f_aff");
+  const f_car = document.getElementById("f_car");
+  const f_gt = document.getElementById("f_gt");
+  const f_sub = document.getElementById("f_sub");
+  const f_note = document.getElementById("f_note");
+
+  const btnNew = document.getElementById("btnNew");
+  const btnSave = document.getElementById("btnSave");
+  const loadSelect = document.getElementById("loadSelect");
+  const btnLoad = document.getElementById("btnLoad");
+  const btnLoadFile = document.getElementById("btnLoadFile");
+  const pedigreeFile = document.getElementById("pedigreeFile");
+
+  const addMale = document.getElementById("addMale");
+  const addFemale = document.getElementById("addFemale");
+  const addUnknown = document.getElementById("addUnknown");
+
+  const btnCouple = document.getElementById("btnCouple");
+  const btnConsang = document.getElementById("btnConsang");
+  const btnChild = document.getElementById("btnChild");
+  const btnAdopt = document.getElementById("btnAdopt");
+  const togAffected = document.getElementById("togAffected");
+  const togCarrier = document.getElementById("togCarrier");
+  const togDeceased = document.getElementById("togDeceased");
+  const setProband = document.getElementById("setProband");
+
+  const exportSVG = document.getElementById("exportSVG");
+  const exportPNG = document.getElementById("exportPNG");
+  const exportPDF = document.getElementById("exportPDF");
+  const printBtn = document.getElementById("printBtn");
+  const exportJSON = document.getElementById("exportJSON");
+  const importJSON = document.getElementById("importJSON");
+  const jsonFile = document.getElementById("jsonFile");
+
+  const toggleLang = document.getElementById("toggleLang");
+  const toggleLegend = document.getElementById("toggleLegend");
+  const toggleGenerationLabels = document.getElementById("toggleGenerationLabels");
+  const btnBeautify = document.getElementById("btnBeautify");
+  const btnUndo = document.getElementById("btnUndo");
+  const btnRedo = document.getElementById("btnRedo");
+
+  const applyProps = document.getElementById("applyProps");
+  const contextMenu = document.getElementById("contextMenu");
+
+  const cardSelectionTitle = document.getElementById("cardSelectionTitle");
+  const selectionTip = document.getElementById("selectionTip");
+  const cardPropsTitle = document.getElementById("cardPropsTitle");
+  const lbl_id = document.getElementById("lbl_id");
+  const lbl_sex = document.getElementById("lbl_sex");
+  const lbl_by = document.getElementById("lbl_by");
+  const lbl_da = document.getElementById("lbl_da");
+  const lbl_aff = document.getElementById("lbl_aff");
+  const lbl_car = document.getElementById("lbl_car");
+  const lbl_gt = document.getElementById("lbl_gt");
+  const lbl_sub = document.getElementById("lbl_sub");
+  const lbl_note = document.getElementById("lbl_note");
+  const propsTip = document.getElementById("propsTip");
+  const cardIndTitle = document.getElementById("cardIndTitle");
+  const cardLegendTitle = document.getElementById("cardLegendTitle");
+  const legendHelperText = document.getElementById("legendHelperText");
+  const ctxAddSpouse = document.getElementById("ctxAddSpouse");
+  const ctxAddChild = document.getElementById("ctxAddChild");
+  const ctxAddParent = document.getElementById("ctxAddParent");
+  const ctxAddSibling = document.getElementById("ctxAddSibling");
+  const ctxLinkParent = document.getElementById("ctxLinkParent");
+  const ctxUnlinkParent = document.getElementById("ctxUnlinkParent");
+  const ctxSetProband = document.getElementById("ctxSetProband");
+  const ctxToggleAffected = document.getElementById("ctxToggleAffected");
+  const ctxToggleCarrier = document.getElementById("ctxToggleCarrier");
+  const ctxToggleDeceased = document.getElementById("ctxToggleDeceased");
+  const ctxDelete = document.getElementById("ctxDelete");
+
+  const linkingIndicator = document.getElementById("linkingIndicator");
+  const linkingText = document.getElementById("linkingText");
+  const linkingCancel = document.getElementById("linkingCancel");
+
+  /* ---------- Utils ---------- */
+  const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const round = (v) => Math.round(v);
+  const t = (k) => I18N[ui.lang][k];
+
+  function setStatus(text) {
+    hintText.textContent = `${t("hint")}  •  ${text}`;
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) {
+        resolve();
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  function updateViewTransform() {
+    viewport.setAttribute(
+      "transform",
+      `translate(${state.view.translateX}, ${state.view.translateY}) scale(${state.view.scale})`
+    );
+  }
+
+  function svgPointFromEvent(evt) {
+    const pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    const m = svg.getScreenCTM();
+    if (!m) return { x: 0, y: 0 };
+    const transformed = pt.matrixTransform(m.inverse());
+    return {
+      x: (transformed.x - state.view.translateX) / state.view.scale,
+      y: (transformed.y - state.view.translateY) / state.view.scale
+    };
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function getDB() {
+    try {
+      const data = localStorage.getItem(DB_KEY);
+      if (!data) return {};
+      return JSON.parse(data);
+    } catch (e) {
+      console.error("数据库读取错误:", e);
+      setStatus("数据库读取错误，已重置");
+      return {};
+    }
+  }
+  function setDB(obj) {
+    try {
+      localStorage.setItem(DB_KEY, JSON.stringify(obj));
+    } catch (e) {
+      console.error("数据库保存错误:", e);
+      setStatus("数据库保存失败，可能是存储空间不足");
+    }
+  }
+
+  /* ---------- History ---------- */
+  function updateUndoRedoButtons() {
+    btnUndo.disabled = history.current <= 0;
+    btnRedo.disabled = history.current >= history.stack.length - 1;
+    btnUndo.style.opacity = btnUndo.disabled ? "0.5" : "1";
+    btnRedo.style.opacity = btnRedo.disabled ? "0.5" : "1";
+  }
+
+  function snapshot() {
+    return {
+      familyName: state.familyName,
+      nodes: JSON.parse(JSON.stringify(state.nodes)),
+      rels: JSON.parse(JSON.stringify(state.rels)),
+      selected: Array.from(state.selected)
+    };
+  }
+
+  function restore(saved) {
+    state.familyName = saved.familyName;
+    state.nodes = JSON.parse(JSON.stringify(saved.nodes));
+    state.rels = JSON.parse(JSON.stringify(saved.rels));
+    state.selected = new Set(saved.selected);
+    sanitizeRels();
+    render(true);
+  }
+
+  function saveStateToHistory() {
+    if (history.isUndoRedoOperation) return;
+    history.stack = history.stack.slice(0, history.current + 1);
+    history.stack.push(snapshot());
+    history.current++;
+    if (history.stack.length > history.maxSize) {
+      history.stack.shift();
+      history.current--;
+    }
+    updateUndoRedoButtons();
+  }
+
+  function undo() {
+    if (history.current <= 0) return;
+    history.isUndoRedoOperation = true;
+    history.current--;
+    restore(history.stack[history.current]);
+    history.isUndoRedoOperation = false;
+    updateUndoRedoButtons();
+  }
+
+  function redo() {
+    if (history.current >= history.stack.length - 1) return;
+    history.isUndoRedoOperation = true;
+    history.current++;
+    restore(history.stack[history.current]);
+    history.isUndoRedoOperation = false;
+    updateUndoRedoButtons();
+  }
+
+  /* ---------- Data helpers ---------- */
+  function nextDefaultID() {
+    return `II-${state.nodes.length + 1}`;
+  }
+
+  function clearSelection() {
+    state.selected.clear();
+    syncSelectionUI();
+  }
+
+  function syncFormFromSelection() {
+    const first = [...state.selected][0];
+    if (!first) {
+      f_id.value = "";
+      f_sex.value = "U";
+      f_by.value = "";
+      f_da.value = "";
+      f_aff.value = "0";
+      f_car.value = "0";
+      f_gt.value = "";
+      f_sub.value = "";
+      f_note.value = "";
+      return;
+    }
+    const n = state.nodes.find(x => x.uid === first);
+    if (!n) return;
+    f_id.value = n.id || "";
+    f_sex.value = n.sex || "U";
+    f_by.value = n.birthYear ?? "";
+    f_da.value = n.deathAge ?? "";
+    f_aff.value = String(n.affected ?? 0);
+    f_car.value = String(n.carrier ?? 0);
+    f_gt.value = n.genotype || "";
+    f_sub.value = n.subtext || "";
+    f_note.value = n.note || "";
+  }
+
+  function syncSelectionUI() {
+    selCount.textContent = `${state.selected.size} ${t("sel")}`;
+    syncFormFromSelection();
+    render(false);
+  }
+
+  function ensurePairSelected() {
+    const sel = [...state.selected];
+    if (sel.length !== 2) return null;
+    const a = state.nodes.find(n => n.uid === sel[0]);
+    const b = state.nodes.find(n => n.uid === sel[1]);
+    if (!a || !b) return null;
+    return { a, b };
+  }
+
+  function relExists(type, aUid, bUid) {
+    return state.rels.some(r =>
+      r.type === type &&
+      ((r.a === aUid && r.b === bUid) || (r.a === bUid && r.b === aUid))
+    );
+  }
+
+  function coupleMidpoint(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  }
+
+  function findCoupleRel(aUid, bUid) {
+    return state.rels.find(r =>
+      (r.type === "couple" || r.type === "consang") &&
+      ((r.a === aUid && r.b === bUid) || (r.a === bUid && r.b === aUid))
+    );
+  }
+
+  function sanitizeRels() {
+    const nodeIds = new Set(state.nodes.map(n => n.uid));
+    const seen = new Set();
+    state.rels = state.rels.filter(r => {
+      if (!r || !r.type) return false;
+      if (!nodeIds.has(r.a) || !nodeIds.has(r.b)) return false;
+      if ((r.type === "parent" || r.type === "adopt") && (!r.child || !nodeIds.has(r.child))) return false;
+      if ((r.type === "couple" || r.type === "consang") && r.a === r.b) return false;
+
+      const key = (() => {
+        if (r.type === "couple" || r.type === "consang") {
+          const x = [r.a, r.b].sort().join("|");
+          return `${r.type}:${x}`;
+        }
+        if (r.type === "parent" || r.type === "adopt") {
+          const x = [r.a, r.b].sort().join("|");
+          return `${r.type}:${x}:${r.child}`;
+        }
+        return `${r.type}:${r.uid || uid()}`;
+      })();
+
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  /* ---------- Core operations ---------- */
+  function addNode(sex) {
+    saveStateToHistory();
+    const box = svg.getBoundingClientRect();
+    const x = round(box.width * 0.45 + (Math.random() * 30 - 15));
+    const y = round(box.height * 0.35 + (Math.random() * 30 - 15));
+    const node = {
+      uid: uid(),
+      id: nextDefaultID(),
+      sex, x, y,
+      affected: 0,
+      carrier: 0,
+      deceased: 0,
+      birthYear: null,
+      deathAge: null,
+      genotype: "",
+      subtext: "",
+      note: "",
+      proband: 0
+    };
+    state.nodes.push(node);
+    state.selected.clear();
+    state.selected.add(node.uid);
+    setStatus(t("statusAdded"));
+    render(true);
+  }
+
+  function addCouple(type) {
+    const pair = ensurePairSelected();
+    if (!pair) { setStatus(t("statusNeed2")); return; }
+    if (relExists(type, pair.a.uid, pair.b.uid)) {
+      setStatus(t("statusRelExists"));
+      return;
+    }
+    saveStateToHistory();
+    state.rels.push({ uid: uid(), type, a: pair.a.uid, b: pair.b.uid });
+    sanitizeRels();
+    setStatus(type === "consang" ? t("legendConsang") : t("legendCouple"));
+    render(true);
+  }
+
+  function addChild(relType) {
+    const pair = ensurePairSelected();
+    if (!pair) { setStatus(t("statusNeed2")); return; }
+    const couple = findCoupleRel(pair.a.uid, pair.b.uid);
+    if (!couple) setStatus(t("statusChildTip"));
+
+    saveStateToHistory();
+    const mid = coupleMidpoint(pair.a, pair.b);
+    const child = {
+      uid: uid(),
+      id: nextDefaultID(),
+      sex: "U",
+      x: round(mid.x),
+      y: round(mid.y + 110),
+      affected: 0, carrier: 0, deceased: 0,
+      birthYear: null, deathAge: null,
+      genotype: "", subtext: "", note: "", proband: 0
+    };
+    state.nodes.push(child);
+    state.rels.push({
+      uid: uid(),
+      type: (relType === "adopt") ? "adopt" : "parent",
+      a: pair.a.uid,
+      b: pair.b.uid,
+      child: child.uid
+    });
+    sanitizeRels();
+    state.selected.clear();
+    state.selected.add(child.uid);
+    render(true);
+  }
+
+  function toggleOnSelected(fn, statusKey) {
+    if (state.selected.size === 0) return;
+    saveStateToHistory();
+    [...state.selected].forEach(id => {
+      const n = state.nodes.find(x => x.uid === id);
+      if (n) fn(n);
+    });
+    setStatus(t(statusKey));
+    render(true);
+  }
+
+  function deleteSelected() {
+    if (state.selected.size === 0) return;
+    saveStateToHistory();
+    const sel = new Set(state.selected);
+    state.nodes = state.nodes.filter(n => !sel.has(n.uid));
+    state.rels = state.rels.filter(r => {
+      if (sel.has(r.a) || sel.has(r.b)) return false;
+      if ((r.type === "parent" || r.type === "adopt") && r.child && sel.has(r.child)) return false;
+      return true;
+    });
+    sanitizeRels();
+    state.selected.clear();
+    setStatus(t("statusDeleted"));
+    render(true);
+  }
+
+  /* ---------- Context menu ---------- */
+  let contextTargetUid = null;
+  function showContextMenu(e, node) {
+    contextTargetUid = node.uid;
+    state.selected.clear();
+    state.selected.add(node.uid);
+    syncSelectionUI();
+
+    contextMenu.style.display = "block";
+    contextMenu.style.left = `${e.clientX}px`;
+    contextMenu.style.top = `${e.clientY}px`;
+  }
+
+  function hideContextMenu() {
+    contextMenu.style.display = "none";
+    contextTargetUid = null;
+  }
+
+  function getNode(uid) {
+    return state.nodes.find(n => n.uid === uid);
+  }
+
+  function addSpouseToNode(node) {
+    hideContextMenu();
+    saveStateToHistory();
+
+    const spouseSex = node.sex === "M" ? "F" : (node.sex === "F" ? "M" : "U");
+    const spouse = {
+      uid: uid(),
+      id: nextDefaultID(),
+      sex: spouseSex,
+      x: node.x + 90,
+      y: node.y,
+      affected: 0, carrier: 0, deceased: 0,
+      birthYear: null, deathAge: null,
+      genotype: "", subtext: "", note: "", proband: 0
+    };
+    state.nodes.push(spouse);
+    state.rels.push({ uid: uid(), type: "couple", a: node.uid, b: spouse.uid });
+    sanitizeRels();
+    setStatus(t("statusSpouseAdded"));
+    render(true);
+  }
+
+  function addChildToNode(node) {
+    hideContextMenu();
+    saveStateToHistory();
+    const coupleRel = state.rels.find(r =>
+      (r.type === "couple" || r.type === "consang") && (r.a === node.uid || r.b === node.uid)
+    );
+    let otherParentUid = null;
+    if (coupleRel) {
+      otherParentUid = (coupleRel.a === node.uid) ? coupleRel.b : coupleRel.a;
+    } else {
+      const partner = {
+        uid: uid(),
+        id: nextDefaultID(),
+        sex: "U",
+        x: node.x + 90,
+        y: node.y,
+        affected: 0, carrier: 0, deceased: 0,
+        birthYear: null, deathAge: null,
+        genotype: "", subtext: "", note: "", proband: 0
+      };
+      state.nodes.push(partner);
+      state.rels.push({ uid: uid(), type: "couple", a: node.uid, b: partner.uid });
+      otherParentUid = partner.uid;
+    }
+
+    const mid = coupleMidpoint(node, getNode(otherParentUid));
+    const child = {
+      uid: uid(),
+      id: nextDefaultID(),
+      sex: "U",
+      x: round(mid.x),
+      y: round(mid.y + 110),
+      affected: 0, carrier: 0, deceased: 0,
+      birthYear: null, deathAge: null,
+      genotype: "", subtext: "", note: "", proband: 0
+    };
+    state.nodes.push(child);
+    state.rels.push({ uid: uid(), type: "parent", a: node.uid, b: otherParentUid, child: child.uid });
+    sanitizeRels();
+    setStatus(t("statusChildAdded"));
+    render(true);
+  }
+
+  function addParentToNode(node) {
+    hideContextMenu();
+    saveStateToHistory();
+    const father = {
+      uid: uid(),
+      id: nextDefaultID(),
+      sex: "M",
+      x: node.x - 50,
+      y: node.y - 120,
+      affected: 0, carrier: 0, deceased: 0,
+      birthYear: null, deathAge: null,
+      genotype: "", subtext: "", note: "", proband: 0
+    };
+    const mother = {
+      uid: uid(),
+      id: nextDefaultID(),
+      sex: "F",
+      x: node.x + 50,
+      y: node.y - 120,
+      affected: 0, carrier: 0, deceased: 0,
+      birthYear: null, deathAge: null,
+      genotype: "", subtext: "", note: "", proband: 0
+    };
+    state.nodes.push(father, mother);
+    state.rels.push({ uid: uid(), type: "couple", a: father.uid, b: mother.uid });
+    state.rels.push({ uid: uid(), type: "parent", a: father.uid, b: mother.uid, child: node.uid });
+    sanitizeRels();
+    setStatus(t("statusParentAdded"));
+    render(true);
+  }
+
+  function addSiblingToNode(node) {
+    hideContextMenu();
+    saveStateToHistory();
+    const parentRel = state.rels.find(r => (r.type === "parent") && r.child === node.uid);
+    const sibling = {
+      uid: uid(),
+      id: nextDefaultID(),
+      sex: "U",
+      x: node.x + 90,
+      y: node.y,
+      affected: 0, carrier: 0, deceased: 0,
+      birthYear: null, deathAge: null,
+      genotype: "", subtext: "", note: "", proband: 0
+    };
+    state.nodes.push(sibling);
+
+    if (parentRel) {
+      state.rels.push({ uid: uid(), type: "parent", a: parentRel.a, b: parentRel.b, child: sibling.uid });
+    }
+    sanitizeRels();
+    setStatus(t("statusSiblingAdded"));
+    render(true);
+  }
+
+  function setNodeAsProband(node) {
+    hideContextMenu();
+    saveStateToHistory();
+    state.nodes.forEach(n => n.proband = 0);
+    node.proband = 1;
+    setStatus(t("statusProbandSet"));
+    render(true);
+  }
+
+  function toggleNodeAffected(node) {
+    hideContextMenu();
+    saveStateToHistory();
+    node.affected = (node.affected + 1) % 3;
+    setStatus(t("statusAffectedToggled"));
+    render(true);
+  }
+  function toggleNodeCarrier(node) {
+    hideContextMenu();
+    saveStateToHistory();
+    node.carrier = (node.carrier + 1) % 3;
+    setStatus(t("statusCarrierToggled"));
+    render(true);
+  }
+  function toggleNodeDeceased(node) {
+    hideContextMenu();
+    saveStateToHistory();
+    node.deceased = node.deceased ? 0 : 1;
+    setStatus(t("statusDeceasedToggled"));
+    render(true);
+  }
+
+  /* ---------- Parent-child relationship management ---------- */
+  let linkingMode = { active: false, parentUid: null };
+  function cancelLinkMode() {
+    linkingMode = { active: false, parentUid: null };
+    linkingIndicator.style.display = "none";
+    setStatus(t("linkingModeCancelled"));
+    render(true);
+  }
+
+  function startLinkMode(parentNode) {
+    hideContextMenu();
+
+    if (linkingMode.active && linkingMode.parentUid === parentNode.uid) {
+      cancelLinkMode();
+      return;
+    }
+
+    linkingMode = { active: true, parentUid: parentNode.uid };
+    linkingIndicator.style.display = "flex";
+    linkingText.textContent = t("linkingSelectChild").replace("{parentId}", parentNode.id);
+    setStatus(t("linkingModeActive"));
+    render(true);
+  }
+
+  function getOrCreatePartnerFor(parentUid) {
+    const coupleRel = state.rels.find(r =>
+      (r.type === "couple" || r.type === "consang") && (r.a === parentUid || r.b === parentUid)
+    );
+    if (coupleRel) {
+      return (coupleRel.a === parentUid) ? coupleRel.b : coupleRel.a;
+    }
+
+    const parentNode = getNode(parentUid);
+    const partner = {
+      uid: uid(),
+      id: nextDefaultID(),
+      sex: "U",
+      x: parentNode ? parentNode.x + 90 : 200,
+      y: parentNode ? parentNode.y : 200,
+      affected: 0, carrier: 0, deceased: 0,
+      birthYear: null, deathAge: null,
+      genotype: "", subtext: "", note: "", proband: 0
+    };
+    state.nodes.push(partner);
+    state.rels.push({ uid: uid(), type: "couple", a: parentUid, b: partner.uid });
+    return partner.uid;
+  }
+
+  function wouldCreateCycle(parentUid, childUid) {
+    const descendants = new Set();
+    collectDescendants(childUid, descendants);
+    return descendants.has(parentUid);
+  }
+
+  function collectDescendants(nodeUid, descendants) {
+    if (descendants.size > state.nodes.length) return; 
+    state.rels.forEach(rel => {
+      if (rel.type === "parent" && (rel.a === nodeUid || rel.b === nodeUid)) {
+        if (rel.child && !descendants.has(rel.child)) {
+          descendants.add(rel.child);
+          collectDescendants(rel.child, descendants);
+        }
+      }
+    });
+  }
+
+  function completeLinkToChild(childNode) {
+    if (!linkingMode.active) return;
+
+    const parentUid = linkingMode.parentUid;
+    const childUid = childNode.uid;
+    if (parentUid === childUid) {
+      setStatus(ui.lang === "zh" ? "不能选择自己作为子代" : "Cannot link to self");
+      cancelLinkMode();
+      return;
+    }
+    if (wouldCreateCycle(parentUid, childUid)) {
+      setStatus(ui.lang === "zh" ? "不能建立循环亲子关系" : "Cycle not allowed");
+      cancelLinkMode();
+      return;
+    }
+
+    const existing = state.rels.find(r => r.type === "parent" && r.child === childUid);
+    if (existing) {
+      if (existing.a === parentUid || existing.b === parentUid) {
+        setStatus(ui.lang === "zh" ? "亲子关系已存在" : "Relationship already exists");
+        cancelLinkMode();
+        return;
+      }
+      if (existing.a && existing.b && existing.a !== existing.b) {
+        setStatus(ui.lang === "zh" ? "该子代已存在双亲，不能再添加第三方父代" : "Child already has two parents");
+        cancelLinkMode();
+        return;
+      }
+    }
+
+    saveStateToHistory();
+    const otherParentUid = getOrCreatePartnerFor(parentUid);
+    const dup = state.rels.some(r =>
+      r.type === "parent" && r.child === childUid &&
+      ((r.a === parentUid && r.b === otherParentUid) || (r.a === otherParentUid && r.b === parentUid))
+    );
+    if (dup) {
+      setStatus(ui.lang === "zh" ? "亲子关系已存在" : "Relationship already exists");
+      cancelLinkMode();
+      return;
+    }
+
+    state.rels.push({
+      uid: uid(),
+      type: "parent",
+      a: parentUid,
+      b: otherParentUid,
+      child: childUid
+    });
+    sanitizeRels();
+    setStatus(t("statusParentLinked"));
+    cancelLinkMode();
+    render(true);
+  }
+
+  function unlinkParentFromChild(childNode) {
+    hideContextMenu();
+    saveStateToHistory();
+    const parentRels = state.rels.filter(r => r.type === "parent" && r.child === childNode.uid);
+    if (parentRels.length === 0) {
+      setStatus(ui.lang === "zh" ? "该个体没有父代" : "No parents to unlink");
+      return;
+    }
+
+    state.rels = state.rels.filter(r => !(r.type === "parent" && r.child === childNode.uid));
+    sanitizeRels();
+    setStatus(t("statusParentUnlinked"));
+    render(true);
+  }
+
+  /* ---------- Graph helpers ---------- */
+  function findParents(childUid) {
+    const parents = new Set();
+    state.rels.forEach(rel => {
+      if (rel.type === "parent" && rel.child === childUid) {
+        parents.add(rel.a); parents.add(rel.b);
+      }
+    });
+    return [...parents];
+  }
+
+  function findChildren(parentUid) {
+    const children = new Set();
+    state.rels.forEach(rel => {
+      if (rel.type === "parent" && rel.child && (rel.a === parentUid || rel.b === parentUid)) {
+        children.add(rel.child);
+      }
+    });
+    return [...children];
+  }
+
+  function findSpouses(nodeUid) {
+    const spouses = new Set();
+    state.rels.forEach(rel => {
+      if ((rel.type === "couple" || rel.type === "consang") && (rel.a === nodeUid || rel.b === nodeUid)) {
+        spouses.add(rel.a === nodeUid ? rel.b : rel.a);
+      }
+    });
+    return [...spouses];
+  }
+
+  /* ---------- SVG Rendering ---------- */
+  function stylePedigreeLine(el, w = 2) {
+    el.setAttribute("fill", "none");
+    el.setAttribute("stroke", "#111");
+    el.setAttribute("stroke-width", String(w));
+    el.setAttribute("stroke-linecap", "round");
+    el.setAttribute("stroke-linejoin", "round");
+    el.setAttribute("vector-effect", "non-scaling-stroke");
+  }
+
+  function drawGrid() {
+    const box = svg.getBoundingClientRect();
+    const w = box.width, h = box.height;
+    if (w===0 || h===0) return; 
+
+    const step = 40;
+    gGrid.innerHTML = "";
+    for (let x = 0; x <= w; x += step) {
+      const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      ln.setAttribute("x1", x); ln.setAttribute("y1", 0);
+      ln.setAttribute("x2", x); ln.setAttribute("y2", h);
+      gGrid.appendChild(ln);
+    }
+    for (let y = 0; y <= h; y += step) {
+      const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      ln.setAttribute("x1", 0); ln.setAttribute("y1", y);
+      ln.setAttribute("x2", w); ln.setAttribute("y2", y);
+      gGrid.appendChild(ln);
+    }
+  }
+
+  function nodeShapeKind(sex) {
+    if (sex === "M") return "rect";
+    if (sex === "F") return "circle";
+    return "diamond";
+  }
+
+  function renderRelationships() {
+    gRels.innerHTML = "";
+    const byId = new Map(state.nodes.map(n => [n.uid, n]));
+
+    state.rels.filter(r => r.type === "couple" || r.type === "consang").forEach(r => {
+      const a = byId.get(r.a), b = byId.get(r.b);
+      if (!a || !b) return;
+
+      const y = (a.y + b.y) / 2;
+      const x1 = a.x + 26;
+      const x2 = b.x - 26;
+
+      if (r.type === "consang") {
+        const p1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const p2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        p1.setAttribute("d", `M ${x1} ${y - 3} L ${x2} ${y - 3}`);
+        p2.setAttribute("d", `M ${x1} ${y + 3} L ${x2} ${y + 3}`);
+        p1.setAttribute("class", "relLine");
+        p2.setAttribute("class", "relLine");
+        stylePedigreeLine(p1, 1.5);
+        stylePedigreeLine(p2, 1.5);
+        gRels.appendChild(p1);
+        gRels.appendChild(p2);
+        return;
+      }
+
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      line.setAttribute("d", `M ${x1} ${y} L ${x2} ${y}`);
+      line.setAttribute("class", "relLine");
+      stylePedigreeLine(line, 2);
+      gRels.appendChild(line);
+    });
+
+    state.rels.filter(r => r.type === "parent" || r.type === "adopt").forEach(r => {
+      const p1 = byId.get(r.a), p2 = byId.get(r.b), c = byId.get(r.child);
+      if (!p1 || !p2 || !c) return;
+
+      const mid = coupleMidpoint(p1, p2);
+      const joinX = mid.x;
+      const topY = mid.y;
+      const joinY = topY + 30;
+      const childTopY = c.y - 50;
+
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute(
+        "d",
+        `M ${joinX} ${topY} L ${joinX} ${joinY} L ${joinX} ${childTopY} L ${c.x} ${childTopY} L ${c.x} ${c.y - 26}`
+      );
+      path.setAttribute("class", r.type === "adopt" ? "relLine dashed" : "relLine");
+      stylePedigreeLine(path, 2);
+      gRels.appendChild(path);
+    });
+  }
+
+  function renderNodes() {
+    gNodes.innerHTML = "";
+    const size = 24;
+    state.nodes.forEach(n => {
+      const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      group.setAttribute("data-uid", n.uid);
+      group.setAttribute("transform", `translate(${n.x},${n.y})`);
+      group.style.cursor = "pointer";
+
+      if (linkingMode.active && n.uid === linkingMode.parentUid) {
+        const pulse = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        pulse.setAttribute("cx", 0);
+        pulse.setAttribute("cy", 0);
+        pulse.setAttribute("r", size + 8);
+        pulse.setAttribute("fill", "none");
+        pulse.setAttribute("stroke", "rgba(122,162,255,.8)");
+        pulse.setAttribute("stroke-width", "2");
+        pulse.setAttribute("class", "pulse-animation");
+        group.appendChild(pulse);
+      }
+
+      const isSel = state.selected.has(n.uid);
+
+      const kind = nodeShapeKind(n.sex);
+      let shape;
+      if (kind === "rect") {
+        shape = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        shape.setAttribute("x", -size);
+        shape.setAttribute("y", -size);
+        shape.setAttribute("width", size * 2);
+        shape.setAttribute("height", size * 2);
+        shape.setAttribute("rx", 3);
+      } else if (kind === "circle") {
+        shape = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        shape.setAttribute("cx", 0);
+        shape.setAttribute("cy", 0);
+        shape.setAttribute("r", size);
+      } else {
+        shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        shape.setAttribute("d", `M 0 ${-size} L ${size} 0 L 0 ${size} L ${-size} 0 Z`);
+      }
+      shape.setAttribute(
+        "class",
+        `nodeShape ${n.affected === 1 ? "nodeFillAffected" : "nodeFillUnaffected"} ${isSel ? "nodeSelected" : ""}`
+      );
+      group.appendChild(shape);
+
+      if (n.carrier === 1) {
+        const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        dot.setAttribute("cx", 0);
+        dot.setAttribute("cy", 0);
+        dot.setAttribute("r", 4.5);
+        dot.setAttribute("fill", "rgba(232,238,255,.92)");
+        group.appendChild(dot);
+      }
+
+      if (n.affected === 2) {
+        const tt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        tt.setAttribute("text-anchor", "middle");
+        tt.setAttribute("dominant-baseline", "central");
+        tt.setAttribute("class", "badge");
+        tt.textContent = "?";
+        group.appendChild(tt);
+      }
+
+      if (n.deceased === 1) {
+        const sl = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        sl.setAttribute("x1", -size - 6); sl.setAttribute("y1", -size - 6);
+        sl.setAttribute("x2", size + 6); sl.setAttribute("y2", size + 6);
+        sl.setAttribute("stroke", "rgba(232,238,255,.92)");
+        sl.setAttribute("stroke-width", "2.2");
+        sl.setAttribute("vector-effect", "non-scaling-stroke");
+        sl.setAttribute("stroke-linecap", "round");
+        group.appendChild(sl);
+      }
+
+      if (n.proband === 1) {
+        const arrow = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        arrow.setAttribute("x1", -size - 44);
+        arrow.setAttribute("y1", 0);
+        arrow.setAttribute("x2", -size - 6);
+        arrow.setAttribute("y2", 0);
+        arrow.setAttribute("stroke", "rgba(232,238,255,.92)");
+        arrow.setAttribute("stroke-width", "2");
+        arrow.setAttribute("vector-effect", "non-scaling-stroke");
+        arrow.setAttribute("stroke-linecap", "round");
+        arrow.setAttribute("marker-end", "url(#arrow)");
+        group.appendChild(arrow);
+      }
+
+      const idt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      idt.setAttribute("text-anchor", "middle");
+      idt.setAttribute("class", "idtext");
+      idt.setAttribute("y", -size - 10);
+      idt.textContent = n.id || "";
+      group.appendChild(idt);
+
+      const st = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      st.setAttribute("text-anchor", "middle");
+      st.setAttribute("class", "subtext");
+      st.setAttribute("y", size + 16);
+      st.textContent = (n.subtext || "").slice(0, 38);
+      group.appendChild(st);
+
+      if (n.genotype && n.genotype.trim()) {
+        const gt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        gt.setAttribute("text-anchor", "middle");
+        gt.setAttribute("class", "badge");
+        gt.setAttribute("y", size + 34);
+        gt.textContent = n.genotype.trim().slice(0, 40);
+        group.appendChild(gt);
+      }
+
+      const handle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      handle.setAttribute("cx", size + 8);
+      handle.setAttribute("cy", 0);
+      handle.setAttribute("r", 4);
+      handle.setAttribute("fill", "rgba(232,238,255,.7)");
+      handle.setAttribute("stroke", "rgba(232,238,255,.9)");
+      handle.setAttribute("stroke-width", "1");
+      handle.setAttribute("class", "connection-handle");
+      handle.style.cursor = "crosshair";
+      group.appendChild(handle);
+      handle.addEventListener("pointerdown", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        state.connection.active = true;
+        state.connection.fromUid = n.uid;
+        state.connection.fromX = n.x + size + 8;
+        state.connection.fromY = n.y;
+
+        const tempLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        tempLine.setAttribute("x1", state.connection.fromX);
+        tempLine.setAttribute("y1", state.connection.fromY);
+        tempLine.setAttribute("x2", state.connection.fromX);
+        tempLine.setAttribute("y2", state.connection.fromY);
+        tempLine.setAttribute("stroke", "rgba(100,150,255,0.8)");
+        tempLine.setAttribute("stroke-width", "2");
+        tempLine.setAttribute("stroke-dasharray", "5,5");
+        tempLine.setAttribute("vector-effect", "non-scaling-stroke");
+        tempLine.setAttribute("stroke-linecap", "round");
+        tempLine.setAttribute("id", "tempConnectionLine");
+        gRels.appendChild(tempLine);
+        state.connection.tempLine = tempLine;
+      });
+      group.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        if (e.button === 2) {
+          e.stopPropagation();
+          showContextMenu(e, n);
+          return;
+        }
+        if (linkingMode.active) {
+          e.stopPropagation();
+          completeLinkToChild(n);
+          return;
+        }
+        const p = svgPointFromEvent(e);
+        if (!e.shiftKey && !state.selected.has(n.uid)) {
+          state.selected.clear();
+        }
+        if (state.selected.has(n.uid) && e.shiftKey) {
+          state.selected.delete(n.uid);
+        } else {
+          state.selected.add(n.uid);
+        }
+        syncSelectionUI();
+
+        state.drag.active = true;
+        state.drag.uid = n.uid;
+        state.drag.dx = n.x - p.x;
+        state.drag.dy = n.y - p.y;
+        state.drag.historySaved = false;
+      });
+      group.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showContextMenu(e, n);
+      });
+      gNodes.appendChild(group);
+    });
+  }
+
+  function refreshIndividualsList() {
+    indList.innerHTML = "";
+    const sorted = [...state.nodes].sort((a, b) => (a.y - b.y) || (a.x - b.x));
+    sorted.forEach(n => {
+      const div = document.createElement("div");
+      div.className = "item";
+      const left = document.createElement("div");
+      const sexSym = n.sex === "M" ? "□" : (n.sex === "F" ? "○" : "◇");
+      const affTxt = n.affected === 1 ? t("legendAffected") : (n.affected === 2 ? t("aff2") : t("legendUnaffected"));
+      left.innerHTML = `<b>${sexSym} ${escapeHtml(n.id || n.uid.slice(0, 6))}</b><div class="muted">${escapeHtml(affTxt)}${n.carrier ? " • " + escapeHtml(t("legendCarrier")) : ""}${n.deceased ? " • " + escapeHtml(t("legendDeceased")) : ""}</div>`;
+      const right = document.createElement("div");
+      right.className = "muted";
+      right.textContent = `${Math.round(n.x)},${Math.round(n.y)}`;
+      div.appendChild(left);
+      div.appendChild(right);
+
+      div.addEventListener("click", () => {
+        state.selected.clear();
+        state.selected.add(n.uid);
+        syncSelectionUI();
+      });
+
+      indList.appendChild(div);
+    });
+  }
+
+  function updateLegend() {
+    legendTitle.textContent = t("legendTitle");
+    legendGrid.innerHTML = "";
+
+    const existing = new Set();
+    if (state.nodes.some(n => n.sex === "M")) existing.add("male");
+    if (state.nodes.some(n => n.sex === "F")) existing.add("female");
+    if (state.nodes.some(n => n.sex === "U")) existing.add("unknown");
+    if (state.nodes.some(n => n.affected === 1)) existing.add("affected");
+    if (state.nodes.some(n => n.affected === 0)) existing.add("unaffected");
+    if (state.nodes.some(n => n.carrier === 1)) existing.add("carrier");
+    if (state.nodes.some(n => n.deceased === 1)) existing.add("deceased");
+    if (state.rels.some(r => r.type === "couple")) existing.add("couple");
+    if (state.rels.some(r => r.type === "consang")) existing.add("consang");
+    if (state.rels.some(r => r.type === "adopt")) existing.add("adopt");
+
+    const items = [];
+    if (existing.has("male")) items.push(["□", t("legendMale")]);
+    if (existing.has("female")) items.push(["○", t("legendFemale")]);
+    if (existing.has("unknown")) items.push(["◇", t("legendUnknown")]);
+    if (existing.has("unaffected")) items.push(["□/○", t("legendUnaffected")]);
+    if (existing.has("affected")) items.push(["■", t("legendAffected")]);
+    if (existing.has("carrier")) items.push(["•", t("legendCarrier")]);
+    if (existing.has("deceased")) items.push(["／", t("legendDeceased")]);
+    if (existing.has("couple")) items.push(["—", t("legendCouple")]);
+    if (existing.has("consang")) items.push(["==", t("legendConsang")]);
+    if (existing.has("adopt")) items.push(["- -", t("legendAdopt")]);
+
+    items.forEach(([sym, txt]) => {
+      const s = document.createElement("div");
+      s.className = "legendSym";
+      s.textContent = sym;
+      const d = document.createElement("div");
+      d.textContent = txt;
+      legendGrid.appendChild(s);
+      legendGrid.appendChild(d);
+    });
+    legendBox.style.display = ui.legendVisible && items.length ? "block" : "none";
+    toggleLegend.textContent = ui.legendVisible ? t("toggleLegendHide") : t("toggleLegendShow");
+  }
+
+
+
+  function render(full) {
+    drawGrid();
+    renderGenerationLabels();
+    renderRelationships();
+    renderNodes();
+    updateLegend();
+    if (full) refreshIndividualsList();
+  }
+
+  /* ---------- Standardized Beautify (Improved) ---------- */
+  function toRoman(num) {
+    const romanNumerals = [
+      { value: 1000, numeral: 'M' },
+      { value: 900, numeral: 'CM' },
+      { value: 500, numeral: 'D' },
+      { value: 400, numeral: 'CD' },
+      { value: 100, numeral: 'C' },
+      { value: 90, numeral: 'XC' },
+      { value: 50, numeral: 'L' },
+      { value: 40, numeral: 'XL' },
+      { value: 10, numeral: 'X' },
+      { value: 9, numeral: 'IX' },
+      { value: 5, numeral: 'V' },
+      { value: 4, numeral: 'IV' },
+      { value: 1, numeral: 'I' }
+    ];
+    
+    let result = '';
+    for (let i = 0; i < romanNumerals.length; i++) {
+      while (num >= romanNumerals[i].value) {
+        result += romanNumerals[i].numeral;
+        num -= romanNumerals[i].value;
+      }
+    }
+    return result;
+  }
+
+  function renderGenerationLabels() {
+    const gGenLabels = document.getElementById("generationLabels");
+    if (!gGenLabels) return;
+    
+    gGenLabels.innerHTML = "";
+    
+    // Collect all nodes by generation
+    const genMap = new Map();
+    const founders = state.nodes.filter(n => findParents(n.uid).length === 0);
+    
+    // Assign generations using BFS
+    if (founders.length > 0) {
+        const queue = [];
+        founders.forEach(n => {
+            genMap.set(n.uid, 1);
+            queue.push(n.uid);
+        });
+        
+        const visited = new Set(founders.map(n => n.uid));
+        while (queue.length > 0) {
+            const u = queue.shift();
+            const currentGen = genMap.get(u);
+            
+            // Add spouses at same generation
+            findSpouses(u).forEach(v => {
+                if (!genMap.has(v)) {
+                    genMap.set(v, currentGen);
+                    if (!visited.has(v)) {
+                        visited.add(v);
+                        queue.push(v);
+                    }
+                }
+            });
+            
+            // Add children at next generation
+            findChildren(u).forEach(c => {
+                const childGen = genMap.get(c);
+                if (!childGen || childGen <= currentGen) {
+                    genMap.set(c, currentGen + 1);
+                    if (!visited.has(c)) {
+                        visited.add(c);
+                        queue.push(c);
+                    }
+                }
+            });
+        }
+    } else {
+        // No clear founders - assign based on connectivity
+        state.nodes.forEach(n => genMap.set(n.uid, 1));
+    }
+    
+    // Group by generation
+    const generations = new Map();
+    state.nodes.forEach(n => {
+        const g = genMap.get(n.uid) || 1;
+        if (!generations.has(g)) generations.set(g, []);
+        generations.get(g).push(n);
+    });
+    
+    // Create labels for each generation
+    const sortedGenerations = [...generations.keys()].sort((a, b) => a - b);
+    const dx = 180;
+    const dy = 220;
+    const startY = 80;
+    const marginLeft = 80;
+    
+    sortedGenerations.forEach(gen => {
+        const nodes = generations.get(gen);
+        const y = startY + (gen - 1) * dy;
+        
+        // Create Roman numeral label
+        const romanNumeral = toRoman(gen);
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.setAttribute("x", marginLeft - 50);
+        label.setAttribute("y", y);
+        label.setAttribute("class", "generation-label");
+        label.setAttribute("font-family", "serif");
+        label.setAttribute("font-size", "18");
+        label.setAttribute("font-weight", "bold");
+        label.setAttribute("fill", "#333");
+        label.setAttribute("text-anchor", "middle");
+        label.setAttribute("dominant-baseline", "central");
+        label.textContent = romanNumeral;
+        
+        // Add generation line
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", marginLeft - 20);
+        line.setAttribute("y1", y);
+        line.setAttribute("x2", marginLeft - 5);
+        line.setAttribute("y2", y);
+        line.setAttribute("stroke", "#333");
+        line.setAttribute("stroke-width", "2");
+        line.setAttribute("vector-effect", "non-scaling-stroke");
+        line.setAttribute("stroke-linecap", "round");
+        
+        gGenLabels.appendChild(line);
+        gGenLabels.appendChild(label);
+    });
+  }
+
+  function autoBeautify() {
+    if (state.nodes.length === 0) return;
+    saveStateToHistory();
+    
+    // Enhanced generation assignment algorithm
+    const genMap = new Map();
+    const founders = state.nodes.filter(n => findParents(n.uid).length === 0);
+    
+    // First pass: assign generations based on pedigree structure
+    if (founders.length > 0) {
+        // BFS from founders
+        const queue = [];
+        founders.forEach(n => {
+            genMap.set(n.uid, 1);
+            queue.push(n.uid);
+        });
+        
+        const visited = new Set(founders.map(n => n.uid));
+        while (queue.length > 0) {
+            const u = queue.shift();
+            const currentGen = genMap.get(u);
+            
+            // Add spouses at same generation
+            findSpouses(u).forEach(v => {
+                if (!genMap.has(v)) {
+                    genMap.set(v, currentGen);
+                    if (!visited.has(v)) {
+                        visited.add(v);
+                        queue.push(v);
+                    }
+                }
+            });
+            
+            // Add children at next generation
+            findChildren(u).forEach(c => {
+                const childGen = genMap.get(c);
+                if (!childGen || childGen <= currentGen) {
+                    genMap.set(c, currentGen + 1);
+                    if (!visited.has(c)) {
+                        visited.add(c);
+                        queue.push(c);
+                    }
+                }
+            });
+        }
+    } else {
+        // No clear founders - assign based on connectivity
+        state.nodes.forEach(n => genMap.set(n.uid, 1));
+    }
+
+    // Group by generation
+    const generations = new Map();
+    state.nodes.forEach(n => {
+        const g = genMap.get(n.uid) || 1;
+        if (!generations.has(g)) generations.set(g, []);
+        generations.get(g).push(n);
+    });
+
+    // Standard pedigree layout parameters
+    const dx = 200; // Horizontal spacing between individuals
+    const dy = 240; // Vertical spacing between generations
+    const startY = 120; // Starting Y position
+    const startX = 120; // Starting X position
+    const marginLeft = 80; // Left margin for generation labels
+
+    // Sort generations numerically (oldest first)
+    const sortedGenerations = [...generations.keys()].sort((a, b) => a - b);
+
+    // Layout each generation
+    sortedGenerations.forEach(gen => {
+        const nodes = generations.get(gen);
+        
+        // Sort individuals within generation by family structure
+        // First sort by parents' positions, then by birth order if available
+        nodes.sort((a, b) => {
+            const parentsA = findParents(a.uid);
+            const parentsB = findParents(b.uid);
+            
+            // If both have parents, sort by average parent position
+            if (parentsA.length > 0 && parentsB.length > 0) {
+                const avgXA = parentsA.reduce((sum, pid) => {
+                    const parent = getNode(pid);
+                    return sum + (genMap.get(pid) ? startX + (genMap.get(pid) - 1) * dx : parent.x);
+                }, 0) / parentsA.length;
+                
+                const avgXB = parentsB.reduce((sum, pid) => {
+                    const parent = getNode(pid);
+                    return sum + (genMap.get(pid) ? startX + (genMap.get(pid) - 1) * dx : parent.x);
+                }, 0) / parentsB.length;
+                
+                return avgXA - avgXB;
+            }
+            
+            // If only one has parents, put that one first
+            if (parentsA.length > 0 && parentsB.length === 0) return -1;
+            if (parentsB.length > 0 && parentsA.length === 0) return 1;
+            
+            // Neither has parents - sort by birth year if available, then by ID
+            if (a.birthYear && b.birthYear) return a.birthYear - b.birthYear;
+            if (a.birthYear && !b.birthYear) return -1;
+            if (!a.birthYear && b.birthYear) return 1;
+            
+            // Fall back to ID or current X position
+            if (a.id && b.id) return a.id.localeCompare(b.id);
+            return a.x - b.x;
+        });
+
+        // Position individuals in this generation
+        let currentX = startX + marginLeft;
+        const y = startY + (gen - 1) * dy;
+        
+        // 1) 分组去重：grouped
+        const grouped = new Set();
+        const familyGroups = [];
+        let currentFamily = [];
+        
+        nodes.forEach(node => {
+            if (grouped.has(node.uid)) return;
+            
+            // Start a new family group
+            if (currentFamily.length === 0) {
+                currentFamily = [node];
+            } else {
+                // Check if this node belongs to the current family
+                const currentParents = findParents(node.uid);
+                const currentFamilyParents = currentFamily.flatMap(n => findParents(n.uid));
+                
+                // If node shares parents with current family, add to it
+                if (currentParents.some(p => currentFamilyParents.includes(p))) {
+                    currentFamily.push(node);
+                } else {
+                    // Start new family group
+                    familyGroups.push(currentFamily);
+                    currentFamily = [node];
+                }
+            }
+            
+            grouped.add(node.uid);
+        });
+        
+        // Add the last family group
+        if (currentFamily.length > 0) {
+            familyGroups.push(currentFamily);
+        }
+        
+        // 2) 布局去重：laidOut
+        const laidOut = new Set();
+        
+        // Position each family group
+        familyGroups.forEach((family, groupIndex) => {
+            if (groupIndex > 0) {
+                currentX += 60; // Extra spacing between family groups
+            }
+            
+            family.forEach((node, indexInFamily) => {
+                if (laidOut.has(node.uid)) return;
+                
+                node.x = currentX;
+                node.y = y;
+                laidOut.add(node.uid);
+                
+                // Position spouse if not already processed
+                const spouses = findSpouses(node.uid)
+                    .map(uid => getNode(uid))
+                    .filter(spouse => spouse && genMap.get(spouse.uid) === gen && !laidOut.has(spouse.uid));
+                
+                if (spouses.length > 0) {
+                    const spouse = spouses[0]; // Take first spouse
+                    spouse.x = currentX + dx;
+                    spouse.y = y;
+                    laidOut.add(spouse.uid);
+                    currentX += dx * 2;
+                } else {
+                    currentX += dx;
+                }
+            });
+        });
+    });
+
+    // Ensure couple relationships are properly aligned horizontally
+    state.rels
+        .filter(r => r.type === "couple" || r.type === "consang")
+        .forEach(r => {
+            const a = getNode(r.a);
+            const b = getNode(r.b);
+            if (a && b) {
+                const avgY = (a.y + b.y) / 2;
+                a.y = avgY;
+                b.y = avgY;
+                // Ensure horizontal alignment for couples
+                const dx = Math.abs(a.x - b.x);
+                if (dx > 0) {
+                    b.x = a.x + 200; // Standard couple spacing
+                }
+            }
+        });
+
+    // Update generation labels
+    renderGenerationLabels();
+    render(true);
+    setStatus(`${t("beautify")} ✓`);
+  }
+
+  /* ---------- Improved Export Logic (WYSIWYG) ---------- */
+  function getLegendSVGNode() {
+    if(!ui.legendVisible) return null;
+    
+    // Create a temporary SVG group for the legend
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", "translate(20, 20)"); // Padding from top-left
+    
+    // Draw background box
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("width", "180");
+    rect.setAttribute("height", "260"); // Estimate height
+    rect.setAttribute("fill", "white");
+    rect.setAttribute("stroke", "#333");
+    rect.setAttribute("stroke-width", "1");
+    rect.setAttribute("rx", "4");
+    g.appendChild(rect);
+
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    title.textContent = t("legendTitle");
+    title.setAttribute("x", "10");
+    title.setAttribute("y", "20");
+    title.setAttribute("font-weight", "bold");
+    title.setAttribute("font-family", "Arial, sans-serif");
+    title.setAttribute("font-size", "12");
+    g.appendChild(title);
+
+    const items = [];
+    const existing = new Set();
+    if (state.nodes.some(n => n.sex === "M")) existing.add("male");
+    if (state.nodes.some(n => n.sex === "F")) existing.add("female");
+    if (state.nodes.some(n => n.sex === "U")) existing.add("unknown");
+    if (state.nodes.some(n => n.affected === 1)) existing.add("affected");
+    if (state.nodes.some(n => n.affected === 0)) existing.add("unaffected");
+    if (state.nodes.some(n => n.carrier === 1)) existing.add("carrier");
+    if (state.nodes.some(n => n.deceased === 1)) existing.add("deceased");
+    if (state.rels.some(r => r.type === "couple")) existing.add("couple");
+    if (state.rels.some(r => r.type === "consang")) existing.add("consang");
+    if (state.rels.some(r => r.type === "adopt")) existing.add("adopt");
+
+    if (existing.has("male")) items.push(["□", t("legendMale")]);
+    if (existing.has("female")) items.push(["○", t("legendFemale")]);
+    if (existing.has("unknown")) items.push(["◇", t("legendUnknown")]);
+    if (existing.has("unaffected")) items.push(["□/○", t("legendUnaffected")]);
+    if (existing.has("affected")) items.push(["■", t("legendAffected")]);
+    if (existing.has("carrier")) items.push(["•", t("legendCarrier")]);
+    if (existing.has("deceased")) items.push(["／", t("legendDeceased")]);
+    if (existing.has("couple")) items.push(["—", t("legendCouple")]);
+    if (existing.has("consang")) items.push(["==", t("legendConsang")]);
+    if (existing.has("adopt")) items.push(["- -", t("legendAdopt")]);
+
+    let y = 45;
+    items.forEach(([sym, txt]) => {
+        const tSym = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        tSym.textContent = sym;
+        tSym.setAttribute("x", "15");
+        tSym.setAttribute("y", y);
+        tSym.setAttribute("font-family", "Arial, sans-serif");
+        tSym.setAttribute("font-size", "14");
+        
+        const tTxt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        tTxt.textContent = txt;
+        tTxt.setAttribute("x", "45");
+        tTxt.setAttribute("y", y);
+        tTxt.setAttribute("font-family", "Arial, sans-serif");
+        tTxt.setAttribute("font-size", "11");
+        
+        g.appendChild(tSym);
+        g.appendChild(tTxt);
+        y += 20;
+    });
+
+    rect.setAttribute("height", y + 10);
+    return g;
+  }
+
+  function serializeSVG(forExport = false) {
+    // 1. Calculate bounding box including all nodes
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    if(state.nodes.length === 0) { minX=0; maxX=800; minY=0; maxY=600; }
+    else {
+        state.nodes.forEach(n => {
+            minX = Math.min(minX, n.x);
+            minY = Math.min(minY, n.y);
+            maxX = Math.max(maxX, n.x);
+            maxY = Math.max(maxY, n.y);
+        });
+        // Add padding
+        minX -= 100; minY -= 100; maxX += 100; maxY += 100;
+        
+        // If legend is visible and for export, make room for it top-left or check overlap
+        // For simplicity, we just include 0,0 if legend is needed
+        if(forExport && ui.legendVisible) {
+            minX = Math.min(minX, 0);
+            minY = Math.min(minY, 0);
+        }
+    }
+    
+    const width = maxX - minX;
+    const height = maxY - minY;
+
+    // 2. Clone the SVG
+    const clone = svg.cloneNode(true);
+    clone.setAttribute("viewBox", `${minX} ${minY} ${width} ${height}`);
+    clone.setAttribute("width", width);
+    clone.setAttribute("height", height);
+    
+    // 3. Clean up for export
+    const grid = clone.querySelector("#grid");
+    if (grid) grid.remove(); // Remove grid
+    
+    // Remove UI helpers
+    clone.querySelectorAll(".connection-handle, .pulse-animation").forEach(el => el.remove());
+    
+    // Fix styles for export (use appropriate stroke widths for vector graphics)
+    // For publication-quality export, use thinner, consistent stroke widths
+    clone.querySelectorAll(".relLine").forEach(el => {
+        el.setAttribute("stroke", "black");
+        el.setAttribute("stroke-width", "1.2");
+        el.style.vectorEffect = "none";
+    });
+    clone.querySelectorAll(".nodeShape").forEach(el => {
+        el.setAttribute("stroke", "black");
+        el.setAttribute("stroke-width", "1.2");
+        if(el.classList.contains("nodeFillAffected")) el.setAttribute("fill", "black");
+        else if(el.classList.contains("nodeFillUnaffected")) el.setAttribute("fill", "white");
+        el.style.vectorEffect = "none";
+    });
+    clone.querySelectorAll("text").forEach(el => {
+        el.setAttribute("fill", "black");
+        el.setAttribute("font-family", "Arial, sans-serif");
+        // 删除 font-size 0.9 的逻辑，只做下限保护
+        const fontSize = el.getAttribute("font-size") || "12";
+        el.setAttribute("font-size", Math.max(10, parseFloat(fontSize)));
+    });
+    clone.querySelectorAll("path, line").forEach(el => {
+         if(!el.getAttribute("stroke")) el.setAttribute("stroke", "black");
+         if(!el.getAttribute("stroke-width")) el.setAttribute("stroke-width", "1");
+    });
+
+    // 4. Append Legend if needed
+    if(forExport && ui.legendVisible) {
+        const legendNode = getLegendSVGNode();
+        if(legendNode) {
+            // Reposition legend inside the new viewBox relative to minX, minY
+            // We place it at minX+20, minY+20
+            legendNode.setAttribute("transform", `translate(${minX + 20}, ${minY + 20})`);
+            clone.appendChild(legendNode);
+        }
+    }
+
+    const xml = new XMLSerializer().serializeToString(clone);
+    return `<?xml version="1.0" encoding="UTF-8"?>\n` + xml;
+  }
+
+  function downloadBlob(filename, blob) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 500);
+  }
+
+  /* ---------- Auto-save ---------- */
+  function setupAutoSave() {
+    let autoSaveTimer = null;
+    const autoSaveInterval = 30000;
+
+    function autoSave() {
+      if (!state.familyName || state.nodes.length === 0) return;
+      const db = getDB();
+      db[state.familyName] = {
+        savedAt: Date.now(),
+        payload: JSON.parse(JSON.stringify({
+          familyName: state.familyName,
+          nodes: state.nodes,
+          rels: state.rels
+        }))
+      };
+      setDB(db);
+      setStatus((ui.lang === "zh" ? "自动保存: " : "Auto-saved: ") + state.familyName);
+      refreshLoadList();
+    }
+
+    const originalSaveStateToHistory = saveStateToHistory;
+    saveStateToHistory = function () {
+      originalSaveStateToHistory.apply(this, arguments);
+      if (autoSaveTimer) clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(autoSave, autoSaveInterval);
+    };
+  }
+
+  function exportWithMetadata(format) {
+    const metadata = {
+      title: state.familyName || "Pedigree Chart",
+      created: new Date().toISOString(),
+      version: "2.1",
+      nodesCount: state.nodes.length,
+      relationshipsCount: state.rels.length,
+      language: ui.lang
+    };
+    if (format === 'json') {
+      const exportData = {
+        metadata: metadata,
+        data: {
+          familyName: state.familyName,
+          nodes: state.nodes,
+          rels: state.rels,
+          lang: ui.lang
+        }
+      };
+      return JSON.stringify(exportData, null, 2);
+    }
+    return null;
+  }
+
+  /* ---------- Keyboard shortcuts ---------- */
+  function setupKeyboardShortcuts() {
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key.toLowerCase()) {
+          case "s": e.preventDefault(); btnSave.click(); break;
+          case "z": e.preventDefault(); if (e.shiftKey) btnRedo.click(); else btnUndo.click(); break;
+          case "y": e.preventDefault(); btnRedo.click(); break;
+          case "n": e.preventDefault(); btnNew.click(); break;
+          case "a": e.preventDefault(); selectAll(); break;
+        }
+        return;
+      }
+      switch (e.key) {
+        case "Delete":
+        case "Backspace": e.preventDefault(); if (state.selected.size > 0) deleteSelected(); break;
+        case "Escape": e.preventDefault(); if (linkingMode.active) { cancelLinkMode(); return; } state.selected.clear(); syncSelectionUI(); hideContextMenu(); break;
+      }
+    });
+  }
+
+  function selectAll() {
+    state.selected.clear();
+    state.nodes.forEach(n => state.selected.add(n.uid));
+    syncSelectionUI();
+  }
+
+  /* ---------- File load helpers ---------- */
+  function loadPedigreeFromFile(file) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        const data = JSON.parse(e.target.result);
+        let payload;
+        if (data.metadata && data.data) payload = data.data;
+        else payload = data;
+
+        saveStateToHistory();
+        state.familyName = payload.familyName || file.name.replace(/\.[^/.]+$/, "");
+        state.nodes = payload.nodes || [];
+        state.rels = payload.rels || [];
+        ui.lang = (payload.lang && payload.lang in I18N) ? payload.lang : ui.lang;
+        localStorage.setItem("ped_lang", ui.lang);
+        state.selected.clear();
+        applyI18N();
+        setStatus(`${t("statusLoaded")}: ${file.name}`);
+        render(true);
+        setTimeout(() => { refreshIndividualsList(); updateLegend(); }, 100);
+      } catch (error) {
+        setStatus(ui.lang === "zh" ? "文件格式错误" : "Invalid file format");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function parsePED(text) {
+    const lines = text.split(/\r?\n/).filter(l => l.trim() && !l.startsWith('#'));
+    const ped = lines.map(l => l.trim().split(/\s+/));
+    if (ped.length === 0 || ped[0].length < 6) throw new Error("Invalid PED format");
+    const nodes = [];
+    const rels = [];
+    const idMap = new Map();
+
+    ped.forEach((row, idx) => {
+      const [fam, id, father, mother, sexCode, pheno] = row;
+      const sex = sexCode === "1" ? "M" : (sexCode === "2" ? "F" : "U");
+      const affected = pheno === "2" ? 1 : (pheno === "1" ? 0 : 2);
+      const node = {
+        uid: uid(), id, sex, affected, carrier: 0, deceased: 0,
+        birthYear: null, deathAge: null, genotype: "", subtext: "", note: "", proband: 0,
+        x: 200 + (idx % 5) * 100,
+        y: 150 + Math.floor(idx / 5) * 120
+      };
+      nodes.push(node);
+      idMap.set(id, node.uid);
+    });
+    ped.forEach(row => {
+      const [fam, id, father, mother, sexCode, pheno] = row;
+      const childUid = idMap.get(id);
+      if (!childUid) return;
+      const fUid = idMap.get(father);
+      const mUid = idMap.get(mother);
+      if (fUid && mUid) {
+        if (!rels.some(r => (r.type === "couple" || r.type === "consang") &&
+          ((r.a === fUid && r.b === mUid) || (r.a === mUid && r.b === fUid)))) {
+          rels.push({ uid: uid(), type: "couple", a: fUid, b: mUid });
+        }
+        rels.push({ uid: uid(), type: "parent", a: fUid, b: mUid, child: childUid });
+      }
+    });
+    return { nodes, rels };
+  }
+
+  function refreshLoadList() {
+    const db = getDB();
+    loadSelect.innerHTML = "";
+    const keys = Object.keys(db).sort((a, b) => (db[b]?.savedAt || 0) - (db[a]?.savedAt || 0));
+    const opt0 = document.createElement("option");
+    opt0.value = "";
+    opt0.textContent = keys.length ? t("loadPlaceholderPick") : t("loadPlaceholderNone");
+    loadSelect.appendChild(opt0);
+    keys.forEach(k => {
+      const opt = document.createElement("option");
+      opt.value = k;
+      const d = new Date(db[k].savedAt || Date.now());
+      opt.textContent = `${k} — ${d.toLocaleString()}`;
+      loadSelect.appendChild(opt);
+    });
+  }
+
+  /* ---------- i18n ---------- */
+  function applyI18N() {
+    // Buttons text
+    btnNew.textContent = t("newFamily"); btnSave.textContent = t("save"); btnLoad.textContent = t("load");
+    btnLoadFile.textContent = t("loadFromFile"); btnLoadFile.title = t("loadFileTitle");
+    addMale.textContent = t("addMale"); addFemale.textContent = t("addFemale"); addUnknown.textContent = t("addUnknown");
+    btnCouple.textContent = t("addCouple"); btnConsang.textContent = t("addConsang"); btnChild.textContent = t("addChild"); btnAdopt.textContent = t("addAdopt");
+    togAffected.textContent = t("togAffected"); togCarrier.textContent = t("togCarrier"); togDeceased.textContent = t("togDeceased"); setProband.textContent = t("markProband");
+    exportSVG.textContent = t("exportSVG"); exportPNG.textContent = t("exportPNG"); exportPDF.textContent = t("exportPDF"); printBtn.textContent = t("print");
+    exportJSON.textContent = t("exportJSON"); importJSON.textContent = t("importJSON");
+    btnBeautify.textContent = t("beautify"); btnUndo.textContent = t("undo"); btnRedo.textContent = t("redo");
+    toggleLang.textContent = t("toggleLang"); toggleLegend.textContent = ui.legendVisible ? t("toggleLegendHide") : t("toggleLegendShow"); toggleGenerationLabels.textContent = t("toggleGen");
+    hintText.textContent = t("hint"); cardSelectionTitle.textContent = t("selectionTitle"); selectionTip.textContent = t("selectionTip"); cardPropsTitle.textContent = t("propsTitle");
+    lbl_id.textContent = t("id"); lbl_sex.textContent = t("sex"); lbl_by.textContent = t("birthYear"); lbl_da.textContent = t("deathAge");
+    lbl_aff.textContent = t("affected"); lbl_car.textContent = t("carrier"); lbl_gt.textContent = t("genotype"); lbl_sub.textContent = t("subtext"); lbl_note.textContent = t("notes");
+    applyProps.textContent = t("apply"); propsTip.textContent = t("propsTip"); cardIndTitle.textContent = t("individuals"); cardLegendTitle.textContent = t("legendHelperTitle"); legendHelperText.textContent = t("legendHelperText");
+    f_sex.options[0].textContent = t("sexM"); f_sex.options[1].textContent = t("sexF"); f_sex.options[2].textContent = t("sexU");
+    f_aff.options[0].textContent = t("aff0"); f_aff.options[1].textContent = t("aff1"); f_aff.options[2].textContent = t("aff2");
+    f_car.options[0].textContent = t("car0"); f_car.options[1].textContent = t("car1"); f_car.options[2].textContent = t("car2");
+    ctxAddSpouse.textContent = t("ctxAddSpouse"); ctxAddChild.textContent = t("ctxAddChild"); ctxAddParent.textContent = t("ctxAddParent"); ctxAddSibling.textContent = t("ctxAddSibling");
+    ctxLinkParent.textContent = t("ctxLinkParent"); ctxUnlinkParent.textContent = t("ctxUnlinkParent"); ctxSetProband.textContent = t("ctxSetProband");
+    ctxToggleAffected.textContent = t("ctxToggleAffected"); ctxToggleCarrier.textContent = t("ctxToggleCarrier"); ctxToggleDeceased.textContent = t("ctxToggleDeceased"); ctxDelete.textContent = t("ctxDelete"); linkingCancel.textContent = t("linkingCancel");
+
+    refreshLoadList();
+    updateLegend();
+    selCount.textContent = `${state.selected.size} ${t("sel")}`;
+  }
+
+  /* ---------- Events ---------- */
+  addMale.addEventListener("click", () => addNode("M"));
+  addFemale.addEventListener("click", () => addNode("F"));
+  addUnknown.addEventListener("click", () => addNode("U"));
+
+  btnCouple.addEventListener("click", () => addCouple("couple"));
+  btnConsang.addEventListener("click", () => addCouple("consang"));
+  btnChild.addEventListener("click", () => addChild("parent"));
+  btnAdopt.addEventListener("click", () => addChild("adopt"));
+  btnBeautify.addEventListener("click", autoBeautify);
+  btnUndo.addEventListener("click", undo);
+  btnRedo.addEventListener("click", redo);
+
+  togAffected.addEventListener("click", () => toggleOnSelected(n => { n.affected = (n.affected + 1) % 3; }, "statusAffectedToggled"));
+
+  togCarrier.addEventListener("click", () => toggleOnSelected(n => { n.carrier = (n.carrier + 1) % 3; }, "statusCarrierToggled"));
+  togDeceased.addEventListener("click", () => toggleOnSelected(n => { n.deceased = n.deceased ? 0 : 1; }, "togDeceased"));
+  setProband.addEventListener("click", () => {
+    const first = [...state.selected][0];
+    if (!first) { setStatus(t("noSelection")); return; }
+    saveStateToHistory();
+    state.nodes.forEach(n => n.proband = 0);
+    const n = getNode(first);
+    if (n) n.proband = 1;
+    setStatus(t("markProband"));
+    render(true);
+  });
+  applyProps.addEventListener("click", () => {
+    const first = [...state.selected][0];
+    if (!first) { setStatus(t("noSelection")); return; }
+    const n = getNode(first);
+    if (!n) return;
+
+    saveStateToHistory();
+    n.id = f_id.value.trim();
+    n.sex = f_sex.value;
+    n.birthYear = f_by.value ? Number(f_by.value) : null;
+    n.deathAge = f_da.value ? Number(f_da.value) : null;
+    n.affected = Number(f_aff.value);
+    n.carrier = Number(f_car.value);
+    n.genotype = f_gt.value.trim();
+    n.subtext = f_sub.value.trim();
+    n.note = f_note.value.trim();
+
+    setStatus(t("statusUpdated"));
+    render(true);
+  });
+
+  btnNew.addEventListener("click", () => {
+    if (!confirm(t("confirmNew"))) return;
+    saveStateToHistory();
+    state.familyName = prompt(t("promptFamily"), "Family_" + new Date().toISOString().slice(0, 10)) || "Untitled";
+    state.nodes = [];
+    state.rels = [];
+    state.selected.clear();
+    sanitizeRels();
+    setStatus(t("ready"));
+    render(true);
+  });
+  btnSave.addEventListener("click", () => {
+    const name = prompt(t("promptSaveAs"), state.familyName || "Untitled");
+    if (!name) return;
+    state.familyName = name;
+    const db = getDB();
+    db[name] = {
+      savedAt: Date.now(),
+      payload: JSON.parse(JSON.stringify({ familyName: state.familyName, nodes: state.nodes, rels: state.rels }))
+    };
+    setDB(db);
+    refreshLoadList();
+    setStatus(`${t("statusSaved")}: ${name}`);
+  });
+  btnLoad.addEventListener("click", () => {
+    const name = loadSelect.value;
+    if (!name) { setStatus(t("selectFirst")); return; }
+    const db = getDB();
+    if (!db[name]) { setStatus(t("notFound")); return; }
+    saveStateToHistory();
+    const p = db[name].payload;
+    state.familyName = p.familyName || name;
+    state.nodes = p.nodes || [];
+    state.rels = p.rels || [];
+    state.selected.clear();
+    sanitizeRels();
+    setStatus(`${t("statusLoaded")}: ${name}`);
+    render(true);
+    setTimeout(() => { refreshIndividualsList(); updateLegend(); }, 100);
+  });
+
+  btnLoadFile.addEventListener("click", () => pedigreeFile.click());
+  linkingCancel.addEventListener("click", () => cancelLinkMode());
+
+  pedigreeFile.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+    if (fileName.endsWith('.ped')) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const { nodes, rels } = parsePED(ev.target.result);
+          saveStateToHistory();
+          state.familyName = file.name.replace(/\.ped$/i, "");
+          state.nodes = nodes;
+          state.rels = rels;
+          state.selected.clear();
+          sanitizeRels();
+          setStatus(`${t("statusLoaded")}: ${file.name}`);
+          render(true);
+        } catch (err) { setStatus(ui.lang === "zh" ? "PED 文件解析失败" : "PED parse failed"); }
+      };
+      reader.readAsText(file);
+    } else {
+      loadPedigreeFromFile(file);
+    }
+    e.target.value = '';
+  });
+  toggleLang.addEventListener("click", () => {
+    ui.lang = (ui.lang === "zh") ? "en" : "zh";
+    localStorage.setItem("ped_lang", ui.lang);
+    applyI18N();
+    render(true);
+    setStatus(t("ready"));
+  });
+  toggleLegend.addEventListener("click", () => {
+    ui.legendVisible = !ui.legendVisible;
+    localStorage.setItem("ped_legend", ui.legendVisible ? "1" : "0");
+    updateLegend();
+  });
+  toggleGenerationLabels.addEventListener("click", () => {
+    ui.generationLabelsVisible = !ui.generationLabelsVisible;
+    localStorage.setItem("ped_generation_labels", ui.generationLabelsVisible ? "1" : "0");
+    render(true);
+  });
+  
+  exportSVG.addEventListener("click", () => {
+    const xml = serializeSVG(true); // true = for export (cleaner lines, include legend)
+    downloadBlob(`${state.familyName || "pedigree"}.svg`, new Blob([xml], { type: "image/svg+xml" }));
+    setStatus(t("exportedSVG"));
+  });
+
+  exportPNG.addEventListener("click", () => {
+    const xml = serializeSVG(true);
+    const svgBlob = new Blob([xml], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(svgBlob);
+
+    const img = new Image();
+    img.onload = () => {
+      // Use appropriate scale for better quality without overscaling
+      const scale = 1.2; // Reduced from 1.5 to prevent overscaling
+      const canvas = document.createElement("canvas");
+      // Use the sizes from SVG attributes
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(xml, "image/svg+xml");
+      const w = parseFloat(svgDoc.documentElement.getAttribute("width"));
+      const h = parseFloat(svgDoc.documentElement.getAttribute("height"));
+      
+      canvas.width = w * scale;
+      canvas.height = h * scale;
+      const ctx = canvas.getContext("2d");
+
+      // White background
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0);
+
+      canvas.toBlob((blob) => {
+        if (blob) downloadBlob(`${state.familyName || "pedigree"}.png`, blob);
+        URL.revokeObjectURL(url);
+        setStatus(t("exportedPNG"));
+      }, "image/png");
+    };
+    img.src = url;
+  });
+
+  /* ==========  PDF 导出 (Lazy Loading + Error Handling)  ========== */
+  exportPDF.addEventListener("click", async () => {
+    if (!window.jspdf || !window.svg2pdf) {
+        setStatus(ui.lang === 'zh' ? "正在加载 PDF 库..." : "Loading PDF libraries...");
+        try {
+            await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+            await loadScript('https://cdn.jsdelivr.net/npm/svg2pdf.js@2.2.1/dist/svg2pdf.umd.min.js');
+        } catch (e) {
+            console.error(e);
+            setStatus(ui.lang === 'zh' ? "PDF 库加载失败，请检查网络" : "Failed to load PDF libs");
+            return;
+        }
+    }
+
+    const xml = serializeSVG(true);
+    // Parse to get width/height
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(xml, "image/svg+xml");
+    const svgElem = svgDoc.documentElement;
+    const w = parseFloat(svgElem.getAttribute("width"));
+    const h = parseFloat(svgElem.getAttribute("height"));
+
+    // Create PDF
+    const { jsPDF } = window.jspdf;
+    // Points unit
+    const pdf = new jsPDF({
+        orientation: w > h ? "landscape" : "portrait",
+        unit: "pt",
+        format: [w + 40, h + 40] // Add some margin
+    });
+
+    // Create a temporary DOM element for svg2pdf (使用clone避免副作用)
+    const tempContainer = document.createElement('div');
+    tempContainer.appendChild(svgElem.cloneNode(true));
+    
+    try {
+        await svg2pdf(tempContainer.firstChild, pdf, { x: 20, y: 20, width: w, height: h });
+        pdf.save(`${state.familyName || "pedigree"}.pdf`);
+        setStatus(t("exportedPDF"));
+    } catch(err) {
+        console.error(err);
+        setStatus("PDF Generation Error");
+    }
+  });
+
+  printBtn.addEventListener("click", () => {
+    const xml = serializeSVG(true);
+    const w = window.open("", "_blank");
+    w.document.write(`
+      <html><head><title>Print</title>
+      <style>
+        body{margin:0;display:flex;justify-content:center;align-items:center;height:100vh;}
+        svg{max-width:100%;max-height:100%;}
+      </style>
+      </head><body>${xml}</body></html>
+    `);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); w.close(); }, 500); // Small delay to render
+    setStatus(t("printOpened"));
+  });
+
+  exportJSON.addEventListener("click", () => {
+    const jsonData = exportWithMetadata('json');
+    downloadBlob(`${state.familyName || "pedigree"}.json`, new Blob([jsonData], { type: "application/json" }));
+    setStatus(t("exportedJSON"));
+  });
+  importJSON.addEventListener("click", () => jsonFile.click());
+  jsonFile.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const txt = await file.text();
+    try {
+      const data = JSON.parse(txt);
+      const payload = (data.metadata && data.data) ? data.data : data;
+
+      saveStateToHistory();
+      state.familyName = payload.familyName || "Imported";
+      state.nodes = payload.nodes || [];
+      state.rels = payload.rels || [];
+      ui.lang = (payload.lang && payload.lang in I18N) ? payload.lang : ui.lang;
+      localStorage.setItem("ped_lang", ui.lang);
+      state.selected.clear();
+      sanitizeRels();
+      applyI18N();
+      setStatus(t("imported"));
+      render(true);
+    } catch {
+      setStatus(t("importFail"));
+    } finally {
+      jsonFile.value = "";
+    }
+  });
+  
+  /* ---------- Context menu actions ---------- */
+  ctxAddSpouse.onclick = () => { const n = getNode(contextTargetUid); if (n) addSpouseToNode(n); };
+  ctxAddChild.onclick = () => { const n = getNode(contextTargetUid); if (n) addChildToNode(n); };
+  ctxAddParent.onclick = () => { const n = getNode(contextTargetUid); if (n) addParentToNode(n); };
+  ctxAddSibling.onclick = () => { const n = getNode(contextTargetUid); if (n) addSiblingToNode(n); };
+  ctxLinkParent.onclick = () => { const n = getNode(contextTargetUid); if (n) startLinkMode(n); };
+  ctxUnlinkParent.onclick = () => { const n = getNode(contextTargetUid); if (n) unlinkParentFromChild(n); };
+  ctxSetProband.onclick = () => { const n = getNode(contextTargetUid); if (n) setNodeAsProband(n); };
+  ctxToggleAffected.onclick = () => { const n = getNode(contextTargetUid); if (n) toggleNodeAffected(n); };
+  ctxToggleCarrier.onclick = () => { const n = getNode(contextTargetUid); if (n) toggleNodeCarrier(n); };
+  ctxToggleDeceased.onclick = () => { const n = getNode(contextTargetUid); if (n) toggleNodeDeceased(n); };
+  ctxDelete.onclick = () => { hideContextMenu(); deleteSelected(); };
+
+  document.addEventListener("click", (e) => {
+    if (contextMenu.style.display === "block" && !contextMenu.contains(e.target)) hideContextMenu();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hideContextMenu();
+  });
+
+  /* ---------- Pointer move/up (drag + connect) ---------- */
+  window.addEventListener("pointermove", (e) => {
+    if (state.connection.active && state.connection.tempLine) {
+      const p = svgPointFromEvent(e);
+      state.connection.tempLine.setAttribute("x2", p.x);
+      state.connection.tempLine.setAttribute("y2", p.y);
+      return;
+    }
+
+    if (!state.drag.active) return;
+    if (!state.drag.historySaved) {
+      saveStateToHistory();
+      state.drag.historySaved = true;
+    }
+
+    const p = svgPointFromEvent(e);
+    const n = getNode(state.drag.uid);
+    if (!n) return;
+    const box = svg.getBoundingClientRect(); // visible area, not viewBox
+    // Allow dragging anywhere, we handle viewBox later in export
+    n.x = p.x + state.drag.dx;
+    n.y = p.y + state.drag.dy;
+
+    if (state.drag.frameId) cancelAnimationFrame(state.drag.frameId);
+    state.drag.frameId = requestAnimationFrame(() => {
+        render(false);
+        state.drag.frameId = null;
+    });
+
+    if (!state.drag.listUpdateTimeout) {
+      state.drag.listUpdateTimeout = setTimeout(() => {
+        refreshIndividualsList();
+        state.drag.listUpdateTimeout = null;
+      }, 120);
+    }
+  });
+
+  window.addEventListener("pointerup", (e) => {
+    if (state.connection.active) {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const targetGroup = el?.closest?.('g[data-uid]');
+      const toUid = targetGroup?.getAttribute?.("data-uid") || null;
+      const fromUid = state.connection.fromUid;
+
+      if (toUid && fromUid && toUid !== fromUid) {
+        const fromNode = getNode(fromUid);
+        const toNode = getNode(toUid);
+        if (fromNode && toNode) {
+          // 默认创建 couple 关系，Shift+拖拽 = consang
+          const type = e.shiftKey ? "consang" : "couple";
+          if (!relExists(type, fromUid, toUid)) {
+            saveStateToHistory();
+            state.rels.push({ uid: uid(), type, a: fromUid, b: toUid });
+            sanitizeRels();
+            setStatus(t("statusAdded"));
+          } else {
+            setStatus(t("statusRelExists"));
+          }
+          render(true);
+        }
+      }
+
+      if (state.connection.tempLine) {
+        state.connection.tempLine.remove();
+        state.connection.tempLine = null;
+      }
+      state.connection.active = false;
+      state.connection.fromUid = null;
+      return;
+    }
+
+    if (state.drag.active) {
+      if(state.drag.frameId) cancelAnimationFrame(state.drag.frameId);
+      state.drag.active = false;
+      state.drag.uid = null;
+      state.drag.historySaved = false;
+      if (state.drag.listUpdateTimeout) {
+        clearTimeout(state.drag.listUpdateTimeout);
+        state.drag.listUpdateTimeout = null;
+      }
+      render(true); 
+      refreshIndividualsList();
+    }
+  });
+
+  svg.addEventListener("pointerdown", (e) => {
+    if (e.target === svg) {
+      if (linkingMode.active) { cancelLinkMode(); return; }
+      clearSelection();
+      setStatus(t("ready"));
+    }
+  });
+  svg.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  svg.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    const newScale = clamp(state.view.scale * delta, 0.2, 5);
+    const pt = svgPointFromEvent(e);
+    const scaleDiff = newScale - state.view.scale;
+    state.view.scale = newScale;
+    state.view.translateX -= pt.x * scaleDiff;
+    state.view.translateY -= pt.y * scaleDiff;
+    updateViewTransform();
+  }, { passive: false });
+
+  let spacePressed = false;
+  let panStart = null;
+  document.addEventListener("keydown", (e) => {
+    if (e.key === " " && !spacePressed) {
+      spacePressed = true;
+      svg.style.cursor = "grab";
+      e.preventDefault();
+    }
+  });
+  document.addEventListener("keyup", (e) => {
+    if (e.key === " ") {
+      spacePressed = false;
+      svg.style.cursor = "default";
+      state.view.panning = false;
+      panStart = null;
+    }
+  });
+  svg.addEventListener("pointerdown", (e) => {
+    if (spacePressed) {
+      state.view.panning = true;
+      panStart = { x: e.clientX, y: e.clientY };
+      svg.style.cursor = "grabbing";
+      e.preventDefault();
+    }
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (state.view.panning && panStart) {
+      const dx = e.clientX - panStart.x;
+      const dy = e.clientY - panStart.y;
+      state.view.translateX += dx;
+      state.view.translateY += dy;
+      panStart = { x: e.clientX, y: e.clientY };
+      updateViewTransform();
+    }
+  });
+  window.addEventListener("pointerup", () => {
+    if (state.view.panning) {
+      state.view.panning = false;
+      svg.style.cursor = spacePressed ? "grab" : "default";
+    }
+  });
+  svg.addEventListener("dblclick", () => {
+    state.view.scale = 1;
+    state.view.translateX = 0;
+    state.view.translateY = 0;
+    updateViewTransform();
+  });
+
+  /* ---------- Boot ---------- */
+  function boot() {
+    state.familyName = "Family_" + new Date().toISOString().slice(0, 10);
+    applyI18N();
+    sanitizeRels();
+    updateViewTransform();
+    setupKeyboardShortcuts();
+    setupAutoSave();
+    render(true);
+    setStatus(t("ready"));
+    saveStateToHistory();
+    if(appLoader) {
+        appLoader.style.opacity = '0';
+        setTimeout(() => appLoader.remove(), 500);
+    }
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
